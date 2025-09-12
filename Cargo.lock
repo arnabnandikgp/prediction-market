@@ -60,15 +60,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "amm_program"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "solana-program 3.0.0",
-]
-
-[[package]]
 name = "anchor-attribute-access-control"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
