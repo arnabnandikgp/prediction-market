@@ -8,10 +8,15 @@ pub use instructions::*;
 
 declare_id!("9iCxo1nJnDCtZTyKqFKc5PCFmfiezNnXCnycCrYq1GVL");
 
+
 #[program]
 pub mod market_program {
     use super::*;
 
+    pub fn deposit_collateral(ctx: Context<DepositCollateral>) -> Result<()> {
+        // merge_to_collateral(ctx)?;
+        Ok(())
+    }
 
 }
 

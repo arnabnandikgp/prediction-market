@@ -25,5 +25,11 @@ pub struct MarketConfig {
     pub expiration: i64,
     /// padding
     pub padding: [u64; 15],
+    // the vault token account for the collateral
+    pub vault: Pubkey,
+    // conditional token mint 1
+    pub ctf_mint_1: Pubkey,
+    // conditional token mint 2
+    pub ctf_mint_2: Pubkey,
 }
 

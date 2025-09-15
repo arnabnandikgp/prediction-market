@@ -1,9 +1,8 @@
-use crate::states::*;
 use anchor_lang::prelude::*;
-use std::ops::DerefMut;
+use crate::states::*;
 
 #[derive(Accounts)]
-pub struct CreatePermissionPda<'info> {
+pub struct ClosePermissionPda<'info> {
     #[account(
         mut,
         address = pubkey!("11111111111111111111111111111111") // !!key: the program's public key
@@ -15,22 +14,20 @@ pub struct CreatePermissionPda<'info> {
 
     /// Initialize config state account to store protocol owner address and fee rates.
     #[account(
-        init,
+        mut,
         seeds = [
             PERMISSION_SEED.as_bytes(),
             permission_authority.key().as_ref()
         ],
         bump,
-        payer = owner,
-        space = Permission::LEN
+        close = owner
     )]
     pub permission: Account<'info, Permission>,
 
     pub system_program: Program<'info, System>,
 }
 
-pub fn create_permission_pda(ctx: Context<CreatePermissionPda>) -> Result<()> {
-    let permission = ctx.accounts.permission.deref_mut();
-    permission.authority = ctx.accounts.permission_authority.key();
+
+pub fn close_permission_pda(_ctx: Context<ClosePermissionPda>) -> Result<()> {
     Ok(())
 }
