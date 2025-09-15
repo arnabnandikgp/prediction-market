@@ -1,6 +1,6 @@
 pub mod market_config;
 
-pub use config::*;
+pub use market_config::*;
 
 pub mod collateral_vault;
 

@@ -5,7 +5,7 @@ pub const MARKET_CONFIG_SEED: &str = "amm_config";
 /// Holds the current owner of the factory
 #[account]
 #[derive(Default, Debug)]
-#[deive(InitSpace)]
+#[derive(InitSpace)]
 pub struct MarketConfig {
     /// Bump to identify PDA
     pub bump: u8,
