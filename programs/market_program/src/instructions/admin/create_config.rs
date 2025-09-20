@@ -21,7 +21,7 @@ pub struct CreateMarketConfig<'info> {
 
     pub system_program: Program<'info, System>,
 }
-
+// called by the admin
 pub fn create_market_config(ctx: Context<CreateMarketConfig>, index: u16, name: String, description: String, expiration: i64) -> Result<()> {
     let market_config = ctx.accounts.market_config.deref_mut();
     market_config.bump = ctx.bumps.market_config;

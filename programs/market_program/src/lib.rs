@@ -30,10 +30,10 @@ pub mod market_program {
 
     // initialize with permission
 
-    pub fn deposit_collateral(ctx: Context<DepositCollateral>) -> Result<()> {
-        // merge_to_collateral(ctx)?;
-        Ok(())
-    }
+    // pub fn deposit_collateral(ctx: Context<DepositCollateral>) -> Result<()> {
+    //     // merge_to_collateral(ctx)?;
+    //     Ok(())
+    // }
 
 }
 
