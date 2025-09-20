@@ -6,17 +6,19 @@ pub const COLLATERAL_VAULT_SEED: &str = "collateral_vault";
 #[account]
 #[derive(Default, Debug)]
 #[derive(InitSpace)]
-pub struct CollateralVault {
-    /// Bump to identify PDA
-    pub bump: u8,
-    /// Config index
+pub struct VaultState {
     pub market_config: Pubkey,
-    /// Collateral vault owner
-    pub owner: Pubkey,
-    /// padding
-    pub padding: [u64; 15],
+    pub vault_creator: Pubkey,
+
+    pub vault_created_at: i64,
+    pub vault_expiration: i64,
+    
+
+
+
 }
-impl CollateralVault {
-    pub const LEN: usize = 1 + 32 + 32 + 8*15;
+impl VaultState {
+
+    
 }
 

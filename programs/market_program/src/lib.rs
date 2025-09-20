@@ -13,6 +13,23 @@ declare_id!("9iCxo1nJnDCtZTyKqFKc5PCFmfiezNnXCnycCrYq1GVL");
 pub mod market_program {
     use super::*;
 
+
+
+
+    // first create a permissioned pda
+    pub fn create_permissioned_pda(ctx: Context<CreatePermissionPda>) -> Result<()> {
+        instructions::create_permission_pda(ctx)
+    }
+
+
+    pub fn close_permissioned_pda(ctx: Context<ClosePermissionPda>) -> Result<()> {
+        instructions::close_permission_pda(ctx)
+    }
+
+
+
+    // initialize with permission
+
     pub fn deposit_collateral(ctx: Context<DepositCollateral>) -> Result<()> {
         // merge_to_collateral(ctx)?;
         Ok(())

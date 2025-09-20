@@ -22,7 +22,7 @@ pub struct ClosePermissionPda<'info> {
         bump,
         close = owner
     )]
-    pub permission: Account<'info, Permission>,
+    pub permission: Account<'info, Permission>, // permission pda
 
     pub system_program: Program<'info, System>,
 }
