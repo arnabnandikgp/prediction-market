@@ -5,8 +5,8 @@ use crate::admin::*;
 use crate::states::*;
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-
+use anchor_spl::token_interface::{ Mint, TokenAccount, TokenInterface};
+// use anchor_spl::token::Mint;
 #[derive(Accounts)]
 pub struct BuyBet<'info> {
     #[account(mut)]
@@ -14,8 +14,10 @@ pub struct BuyBet<'info> {
 
     // token mints of the conditional tokens
     pub ct1_mint: InterfaceAccount<'info, Mint>,
+    // pub ct1_mint: Account<'info, Mint>,
 
     pub ct2_mint: InterfaceAccount<'info, Mint>,
+    // pub ct2_mint: Account<'info, Mint>,
 
     // user's token accounts for the conditional tokens
     #[account(

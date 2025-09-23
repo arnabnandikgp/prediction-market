@@ -4,8 +4,10 @@
 // 3. update the market config 
 // 4. create and update the vault state
 
+use std::ops::DerefMut;
+
 use anchor_lang::prelude::*;
-use anchor_spl::{token::TokenAccount, token_interface::{Mint, TokenInterface}};
+use anchor_spl::{token_interface::{Mint, TokenInterface}};
 use crate::states::*;
 
 #[derive(Accounts)]
@@ -42,15 +44,14 @@ pub struct Initialize<'info> {
     )]
     pub ct2_mint: InterfaceAccount<'info, Mint>,
 
-    pub vault_state: UncheckedAccount<'info>,
+//     pub vault_state: UncheckedAccount<'info>,
 
-    // the vault to store the collateral
-    #[account(
-        mut, 
-        constraint = vault.key() == vault_state.key(), // TODO: change this to load method of vault returning a Ref to the account data structure
-   )]
-    pub vault: Box<InterfaceAccount<'info, TokenAccount>>,
-
+//     // the vault to store the collateral
+//     #[account(
+//         mut, 
+//         constraint = vault.key() == vault_state.key(), // TODO: change this to load method of vault returning a Ref to the account data structure
+//    )]
+//     pub vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
 
 
@@ -61,7 +62,15 @@ pub struct Initialize<'info> {
 
 
 pub fn Initialize(ctx: Context<Initialize>) -> Result<()> {
+    // let market_config = ctx.accounts.market_config.deref_mut();
     // update the vault_state with the mints of the conditional tokens
+    // update the market config with the conditional token mints
+    // update the market config with the vault
+    // update the market config with the vault state
+    // update the market config with the token program
+    // update the market config with the system program
+    // update the market config with the creator
+    // update the market config with the bump
 
 
     Ok(())

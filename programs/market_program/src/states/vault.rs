@@ -20,6 +20,14 @@ pub struct VaultState {
     // the vault creator
     pub vault_creator: Pubkey,
 
+
+    pub vault_collateral_mint: Pubkey,
+
+    pub vault_collateral_token_program: Pubkey,
+
+    pub vault_collateral_account: Pubkey,
+
+    pub vault_collateral_account_balance: u64,
     // the vaults creation and expiration dates
     pub vault_created_at: i64,
     pub vault_expiration: i64,
@@ -69,6 +77,8 @@ impl VaultState {
         self.winning_ctf_mint = winning_ctf_mint;
         Ok(())
     }
+
+    //
 
 
 }
