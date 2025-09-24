@@ -1,18 +1,21 @@
 // all the things will happen here
 // 1. create the condition token mints
 // 2. create the vault
-// 3. update the market config 
+// 3. update the market config
 // 4. create and update the vault state
 
-use std::ops::DerefMut;
+use crate::states::*;
+use crate::utils::*;
+use crate::{error::ErrorCode};
 
 use anchor_lang::prelude::*;
-use anchor_spl::{token_interface::{Mint, TokenInterface}};
-use crate::states::*;
+use anchor_spl::token_interface::{Mint, TokenInterface};
+pub const AUTH_SEED: &str = "vault_and_lp_mint_auth_seed";
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
-    #[account(mut, address = pubkey!("11111111111111111111111111111111"))] // TODO replace with the admin key
+    #[account(mut, address = pubkey!("11111111111111111111111111111111"))]
+    // TODO replace with the admin key
     pub creator: Signer<'info>,
 
     pub market_config: Account<'info, MarketConfig>,
@@ -20,62 +23,142 @@ pub struct Initialize<'info> {
     // initialize token mints for both the conditional tokens
     // we use seeds to definitively derive at the ctf tokens address
     #[account(
-        init,
-        payer = creator,
-        mint::decimals = 6,
-        mint::authority = creator.key(),
-        mint::freeze_authority = creator.key(),
-        seeds = [b"conditional_token1",
-                market_config.key().as_ref()],
-        bump
+        seeds = [
+            crate::AUTH_SEED.as_bytes(),
+        ],
+        bump,
     )]
-    pub ct1_mint: InterfaceAccount<'info, Mint>,
-
+    pub authority: UncheckedAccount<'info>,
 
     #[account(
         init,
+        seeds = [
+            b"conditional_token1",
+            vault_state.key().as_ref(),
+        ],
+        bump,
+        mint::decimals = 9,
+        mint::authority = authority,
         payer = creator,
-        mint::decimals = 6,
-        mint::authority = creator.key(),
-        mint::freeze_authority = creator.key(),
-        seeds = [b"conditional_token2",
-                market_config.key().as_ref()],
-        bump
+        mint::token_program = token_program,
     )]
-    pub ct2_mint: InterfaceAccount<'info, Mint>,
+    pub ct1_mint: Box<InterfaceAccount<'info, Mint>>,
 
-//     pub vault_state: UncheckedAccount<'info>,
+    #[account(
+        init,
+        seeds = [
+            b"conditional_token2",
+            vault_state.key().as_ref(),
+        ],
+        bump,
+        mint::decimals = 9,
+        mint::authority = authority,
+        payer = creator,
+        mint::token_program = token_program,
+    )]
+    pub ct2_mint: Box<InterfaceAccount<'info, Mint>>,
 
-//     // the vault to store the collateral
-//     #[account(
-//         mut, 
-//         constraint = vault.key() == vault_state.key(), // TODO: change this to load method of vault returning a Ref to the account data structure
-//    )]
-//     pub vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub ct1_token_program: Interface<'info, TokenInterface>,
+    pub ct2_token_program: Interface<'info, TokenInterface>,
 
+    // shoould be created
+    pub vault_state: UncheckedAccount<'info>,
+    // should be a pda account owned by the contract
+    #[account(
+        mut,
+        seeds = [
+            b"vault",
+            vault_state.key().as_ref(),
+        ],
+        bump,
+    )]
+    pub vault: UncheckedAccount<'info>,
 
+    pub collateral_mint: InterfaceAccount<'info, Mint>,
+    pub collateral_token_program: Interface<'info, TokenInterface>,
 
+    //     // the vault to store the collateral
     pub token_program: Interface<'info, TokenInterface>,
-    pub system_program: Program<'info, System>
-
+    pub system_program: Program<'info, System>,
 }
-
 
 pub fn Initialize(ctx: Context<Initialize>) -> Result<()> {
-    // let market_config = ctx.accounts.market_config.deref_mut();
-    // update the vault_state with the mints of the conditional tokens
-    // update the market config with the conditional token mints
-    // update the market config with the vault
-    // update the market config with the vault state
-    // update the market config with the token program
-    // update the market config with the system program
-    // update the market config with the creator
-    // update the market config with the bump
+    //this makes the passed vault account a token account that has some given seeds 
+    create_token_account(
+        &&ctx.accounts.authority.to_account_info(),
+        &ctx.accounts.creator.to_account_info(),
+        &&ctx.accounts.vault.to_account_info(),
+        &ctx.accounts.collateral_mint.to_account_info(),
+        &ctx.accounts.system_program.to_account_info(),
+        &ctx.accounts.collateral_token_program.to_account_info(),
+        &[
+            b"vault",
+            ctx.accounts.vault_state.key().as_ref(),
+            &[ctx.bumps.vault][..],
+        ],
+    )?;
 
+    let vault_state_loader = create_vault_state(
+        &ctx.accounts.creator.to_account_info(),
+        &ctx.accounts.vault_state.to_account_info(),
+        &ctx.accounts.market_config.to_account_info(),
+        &ctx.accounts.collateral_mint.to_account_info(),
+        &ctx.accounts.system_program.to_account_info(),
+    )?;
+    let vault_state = &mut vault_state_loader.load_init()?;
+
+    vault_state.initialize(
+        ctx.accounts.market_config.key(),
+        ctx.accounts.creator.key(),
+        ctx.accounts.market_config.created_at,
+        ctx.accounts.market_config.expiration,
+        ctx.accounts.ct1_mint.key(),
+        ctx.accounts.ct2_mint.key(),
+        ctx.accounts.ct1_token_program.key(),
+        ctx.accounts.ct2_token_program.key(),
+    )?;
+
+    // update the market config with the vault state, vault, conditional token mints, and market resolution
+    ctx.accounts.market_config.vault_state = ctx.accounts.vault_state.key();
+    ctx.accounts.market_config.vault = ctx.accounts.vault.key();
+    ctx.accounts.market_config.ct1_mint = ctx.accounts.ct1_mint.key();
+    ctx.accounts.market_config.ct2_mint = ctx.accounts.ct2_mint.key();
+    ctx.accounts.market_config.market_resolution = false;
 
     Ok(())
-
-    
 }
 
+pub fn create_vault_state<'info>(
+    creator: &AccountInfo<'info>,
+    vault_state: &AccountInfo<'info>,
+    market_config: &AccountInfo<'info>,
+    collateral_mint: &AccountInfo<'info>,
+    system_program: &AccountInfo<'info>,
+) -> Result<AccountLoad<'info, VaultState>> {
+    let (expect_pda_address, bump) = Pubkey::find_program_address(
+        &[
+            b"vault_state",
+            market_config.key().as_ref(),
+            collateral_mint.key().as_ref(),
+        ],
+        &crate::id(),
+    );
 
+    if expect_pda_address != vault_state.key() {
+        return Err(ErrorCode::MathOverflow.into());
+    }
+
+    token::create_or_allocate_account(
+        &crate::id(),
+        creator.to_account_info(),
+        system_program.to_account_info(),
+        vault_state.clone(),
+        &[b"vault_state", market_config.key().as_ref(), &[bump]],
+        VaultState::LEN,
+    )?;
+
+    Ok(AccountLoad::<VaultState>::try_from_unchecked(
+        &crate::id(),
+        &vault_state,
+    )?)
+}

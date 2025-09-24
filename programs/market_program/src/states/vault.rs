@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use crate::{error::ErrorCode};
 
 pub const COLLATERAL_VAULT_SEED: &str = "collateral_vault";
 
@@ -11,23 +12,21 @@ pub const COLLATERAL_VAULT_SEED: &str = "collateral_vault";
 // collateral_mint.key().as_ref(),
 // ],
 // bump,
-#[account]
-#[derive(Default, Debug, InitSpace)]
+#[account(zero_copy(unsafe))]
+#[repr(C, packed)]
+#[derive(Default, Debug)]
 pub struct VaultState {
     // the market config
     pub market_config: Pubkey,
 
+    pub auth_bump: u8,
+
     // the vault creator
     pub vault_creator: Pubkey,
 
+    pub vault: Pubkey,
 
-    pub vault_collateral_mint: Pubkey,
-
-    pub vault_collateral_token_program: Pubkey,
-
-    pub vault_collateral_account: Pubkey,
-
-    pub vault_collateral_account_balance: u64,
+    pub vault_collateral_balance: u64,
     // the vaults creation and expiration dates
     pub vault_created_at: i64,
     pub vault_expiration: i64,
@@ -78,7 +77,23 @@ impl VaultState {
         Ok(())
     }
 
-    //
-
+    pub fn update_collateral_supply(
+        &mut self,
+        amount: u64,
+        add: bool,
+    ) -> Result<()> {
+        if add {
+            self.vault_collateral_balance = self
+                .vault_collateral_balance
+                .checked_add(amount)
+                .ok_or(ErrorCode::MathOverflow)?;
+        } else {
+            self.vault_collateral_balance = self
+                .vault_collateral_balance
+                .checked_sub(amount)
+                .ok_or(ErrorCode::MathOverflow)?;
+        }
+        Ok(())
+    }
 
 }

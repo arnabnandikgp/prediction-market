@@ -26,10 +26,25 @@ pub struct MarketConfig {
     /// padding
     pub padding: [u64; 15],
     // the vault token account for the collateral
+    pub vault_state: Pubkey,
+
     pub vault: Pubkey,
     // conditional token mint 1
-    pub ctf_mint_1: Pubkey,
+    pub ct1_mint: Pubkey,
     // conditional token mint 2
-    pub ctf_mint_2: Pubkey,
+    pub ct2_mint: Pubkey,
+
+    pub ct1_vault_token_account: Pubkey,
+    pub ct2_vault_token_account: Pubkey,
+
+    pub market_resolution: bool,
 }
 
+
+// market_config.bump = ctx.bumps.market_config;
+// market_config.index = index;
+// market_config.owner = ctx.accounts.signer.key();
+// market_config.name = name;
+// market_config.description = description;
+// market_config.created_at = Clock::get()?.unix_timestamp;
+// market_config.expiration = expiration;

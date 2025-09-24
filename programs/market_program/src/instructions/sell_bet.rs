@@ -4,21 +4,101 @@
 // where A is the collateral token and A' is the conditional token
 // and C is the collateral token
 
-use anchor_lang::prelude::*;
 use crate::states::*;
+use crate::utils::*;
+use anchor_lang::prelude::*;
+use anchor_spl::associated_token::AssociatedToken;
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 #[derive(Accounts)]
 pub struct WithdrawCollateral<'info> {
     #[account(mut)]
-    pub signer: Signer<'info>, 
+    pub bettor: Signer<'info>,
 
-    pub vault_state: Account<'info, VaultState>,
+    #[account(
+        seeds = [
+            crate::AUTH_SEED.as_bytes(),
+        ],
+        bump,
+    )]
+    pub authority: UncheckedAccount<'info>,
 
-    pub market_config: Account<'info, MarketConfig>,
+    #[account(
+        mut,
+        token::mint = collateral_mint,
+        token::authority = bettor
+    )]
+    pub collateral_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(mut)]
+    pub vault_state: AccountLoader<'info, VaultState>,
 
+
+    #[account(
+        mut,
+        constraint = vault.key() == vault_state.load()?.vault
+    )]
+    pub vault: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    pub ct1_mint: InterfaceAccount<'info, Mint>,
+    pub ct2_mint: InterfaceAccount<'info, Mint>,
+
+    // user's token accounts for the conditional tokens
+    #[account(
+        mut,
+        token::authority = bettor
+    )]
+    pub ct1_account: InterfaceAccount<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        token::authority = bettor
+    )]
+    pub ct2_account: InterfaceAccount<'info, TokenAccount>,
+
+    pub collateral_mint: InterfaceAccount<'info, Mint>,
+    pub collateral_token_program: Interface<'info, TokenInterface>,
+
+    // TODO : add the vault account of the collateral
     pub token_program: Interface<'info, TokenInterface>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
 }
 
-pub fn withdraw_collateral(ctx: Context<WithdrawCollateral>) -> Result<()> {
+pub fn withdraw_collateral(ctx: Context<WithdrawCollateral>, amount: u64) -> Result<()> {
+
+    let mut vault_state = ctx.accounts.vault_state.load_mut()?;
+
+    // burn the conditional tokens
+    token_burn(
+        ctx.accounts.bettor.to_account_info(),
+        ctx.accounts.token_program.to_account_info(),
+        ctx.accounts.ct1_mint.to_account_info(),
+        ctx.accounts.ct1_account.to_account_info(),
+        amount,
+        &[&[crate::AUTH_SEED.as_bytes(), &[vault_state.auth_bump]]],
+    )?;
+
+    token_burn(
+        ctx.accounts.bettor.to_account_info(),
+        ctx.accounts.token_program.to_account_info(),
+        ctx.accounts.ct2_mint.to_account_info(),
+        ctx.accounts.ct2_account.to_account_info(),
+        amount,
+        &[&[crate::AUTH_SEED.as_bytes(), &[vault_state.auth_bump]]],
+    )?;
+
+    transfer_from_collateral_vault_to_user(
+        ctx.accounts.authority.to_account_info(),
+        ctx.accounts.vault.to_account_info(),
+        ctx.accounts.collateral_account.to_account_info(),
+        ctx.accounts.collateral_mint.to_account_info(),
+        ctx.accounts.collateral_token_program.to_account_info(),
+        amount,
+        ctx.accounts.collateral_mint.decimals,
+        &[&[crate::AUTH_SEED.as_bytes(), &[vault_state.auth_bump]]],
+    )?;
+
+    vault_state.update_collateral_supply(amount, false)?;
+
     Ok(())
 }
