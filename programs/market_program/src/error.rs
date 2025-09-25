@@ -34,6 +34,12 @@ pub enum ErrorCode {
     TransferFeeCalculateNotMatch,
     #[msg("Math overflow")]
     MathOverflow,
+    #[msg("Invalid publickey")]
+    InvalidPublicKey,
+    #[msg("Market not resolved")]
+    MarketNotResolved,
+    #[msg("Wrong winning token")]
+    WrongWinningToken,
     #[msg("Insufficient vault")]
     InsufficientVault,
     #[msg("Invalid fee model")]

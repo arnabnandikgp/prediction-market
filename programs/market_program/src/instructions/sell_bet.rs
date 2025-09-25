@@ -11,7 +11,7 @@ use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 #[derive(Accounts)]
-pub struct WithdrawCollateral<'info> {
+pub struct SellBet<'info> {
     #[account(mut)]
     pub bettor: Signer<'info>,
 
@@ -45,13 +45,15 @@ pub struct WithdrawCollateral<'info> {
     // user's token accounts for the conditional tokens
     #[account(
         mut,
-        token::authority = bettor
+        associated_token::mint = ct1_mint,
+        associated_token::authority = bettor,
     )]
     pub ct1_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
-        token::authority = bettor
+        associated_token::mint = ct2_mint,
+        associated_token::authority = bettor,
     )]
     pub ct2_account: InterfaceAccount<'info, TokenAccount>,
 
@@ -64,7 +66,7 @@ pub struct WithdrawCollateral<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn withdraw_collateral(ctx: Context<WithdrawCollateral>, amount: u64) -> Result<()> {
+pub fn sell_bet(ctx: Context<SellBet>, amount: u64) -> Result<()> {
 
     let mut vault_state = ctx.accounts.vault_state.load_mut()?;
 

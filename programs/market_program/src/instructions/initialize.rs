@@ -82,7 +82,7 @@ pub struct Initialize<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn Initialize(ctx: Context<Initialize>) -> Result<()> {
+pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
     //this makes the passed vault account a token account that has some given seeds 
     create_token_account(
         &&ctx.accounts.authority.to_account_info(),
@@ -145,7 +145,7 @@ pub fn create_vault_state<'info>(
     );
 
     if expect_pda_address != vault_state.key() {
-        return Err(ErrorCode::MathOverflow.into());
+        return Err(ErrorCode::InvalidPublicKey.into());
     }
 
     token::create_or_allocate_account(

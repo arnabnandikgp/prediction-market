@@ -43,7 +43,7 @@ pub struct VaultState {
     pub resolution: u8,
 
     // winning conditional token mint
-    pub winning_ctf_mint: Pubkey,
+    pub winning_ct_mint: Pubkey,
 }
 impl VaultState {
     pub const LEN: usize = 8 + 32 + 32 + 8 + 8 + 32 + 32 + 32 + 32;
@@ -71,9 +71,9 @@ impl VaultState {
         Ok(())
     }
 
-    pub fn resolve_market(&mut self, winning_ctf_mint: Pubkey) -> Result<()> {
+    pub fn resolve_market(&mut self, winning_ct_mint: Pubkey) -> Result<()> {
         self.resolution = 1;
-        self.winning_ctf_mint = winning_ctf_mint;
+        self.winning_ct_mint = winning_ct_mint;
         Ok(())
     }
 
