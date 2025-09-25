@@ -9,3 +9,6 @@ pub use close_permissioned_pda::*;
 
 pub mod update_market_config;
 pub use update_market_config::*;
+
+pub mod resolve_market;
+pub use resolve_market::*;

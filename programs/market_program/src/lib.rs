@@ -47,5 +47,9 @@ pub mod market_program {
         instructions::get_reward(ctx, reward_amount)
     }
 
+    pub fn resolve_market(ctx: Context<ResolveMarket>) -> Result<()> {
+        instructions::resolve_market(ctx)
+    }
+
 }
 

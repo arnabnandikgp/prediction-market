@@ -1,6 +1,9 @@
 pub mod buy_bet;
 pub use buy_bet::*;
 
+pub mod get_reward;
+pub use get_reward::*;
+
 pub mod sell_bet;
 pub use sell_bet::*;
 
@@ -9,6 +12,3 @@ pub use admin::*;
 
 pub mod initialize;
 pub use initialize::*;
-
-pub mod get_reward;
-pub use get_reward::*;
