@@ -10,5 +10,5 @@ pub use admin::*;
 pub mod initialize;
 pub use initialize::*;
 
-pub mod collect_reward;
-pub use collect_reward::*;
+pub mod get_reward;
+pub use get_reward::*;

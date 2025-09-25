@@ -10,10 +10,7 @@ pub use instructions::*;
 pub use utils::*;
 pub use error::*;
 
-
-
 declare_id!("9iCxo1nJnDCtZTyKqFKc5PCFmfiezNnXCnycCrYq1GVL");
-
 
 #[program]
 pub mod market_program {
@@ -44,6 +41,10 @@ pub mod market_program {
 
     pub fn sell_bet(ctx: Context<SellBet>, bet_amount: u64) -> Result<()> {
         instructions::sell_bet(ctx, bet_amount)
+    }
+
+    pub fn get_reward(ctx: Context<GetReward>, reward_amount: u64) -> Result<()> {
+        instructions::get_reward(ctx, reward_amount)
     }
 
 }

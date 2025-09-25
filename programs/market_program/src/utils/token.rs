@@ -1,18 +1,16 @@
-use crate::error::ErrorCode;
 use anchor_lang::{prelude::*, system_program};
 use anchor_spl::{
-    token::{Token, TokenAccount},
+    token::{TokenAccount},
     token_2022::{self},
-    token_interface::{initialize_account3, InitializeAccount3, Mint},
+    token_interface::{initialize_account3, InitializeAccount3},
 };
 use spl_token_2022::{
     self,
     extension::{
-        transfer_fee::{TransferFeeConfig, MAX_FEE_BASIS_POINTS},
         BaseStateWithExtensions, ExtensionType, StateWithExtensions,
     },
 };
-use std::collections::HashSet;
+
 
 pub fn transfer_from_user_to_collateral_vault<'a>(
     authority: AccountInfo<'a>,
