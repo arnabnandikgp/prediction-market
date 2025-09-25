@@ -1,8 +1,9 @@
 // all the things will happen here
 // 1. create the condition token mints
-// 2. create the vault
+// 2. create the vault and make it a token account that is owned by this contract
 // 3. update the market config
 // 4. create and update the vault state
+// the authority account is a pda account that is owned by this contract
 
 use crate::states::*;
 use crate::utils::*;
@@ -22,6 +23,8 @@ pub struct Initialize<'info> {
 
     // initialize token mints for both the conditional tokens
     // we use seeds to definitively derive at the ctf tokens address
+    /// CHECK:
+    /// pool vault and lp mint authority
     #[account(
         seeds = [
             crate::AUTH_SEED.as_bytes(),
@@ -62,8 +65,11 @@ pub struct Initialize<'info> {
     pub ct2_token_program: Interface<'info, TokenInterface>,
 
     // shoould be created
+    /// CHECK: vault state account
     pub vault_state: UncheckedAccount<'info>,
     // should be a pda account owned by the contract
+
+    /// CHECK: vault account
     #[account(
         mut,
         seeds = [

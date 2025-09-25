@@ -9,6 +9,7 @@ skip-lint = false
 amm_program = "8ymbn5nw6fKBEeWoSo1dfMZH45jrotvsmv4UCZnFFUfa"
 market_program = "9iCxo1nJnDCtZTyKqFKc5PCFmfiezNnXCnycCrYq1GVL"
 oracle_adapter = "CKGRJrwnWayKCAUzYvhF67eHkyD45uKFd8p8dYaXQ742"
+oracle_adapter_contract = "6QAq31696E4a8PKMgzVrTq1uBzvF87JNTeAQyHmGivEJ"
 prediction_market = "6rhwmqAZGHZhePX15dDRjrAtXNx4GcLS2XM1cVXmHBe"
 
 [registry]

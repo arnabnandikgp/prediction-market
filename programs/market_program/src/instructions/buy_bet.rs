@@ -12,6 +12,7 @@ pub struct BuyBet<'info> {
     #[account(mut)]
     pub bettor: Signer<'info>,
 
+    /// CHECK: authority is the authority of the contract
     #[account(
         seeds = [
             crate::AUTH_SEED.as_bytes(),
@@ -29,7 +30,6 @@ pub struct BuyBet<'info> {
 
     // token mints of the conditional tokens
     pub ct1_mint: InterfaceAccount<'info, Mint>,
-    // pub ct1_mint: Account<'info, Mint>,
 
     #[account(mut)]
     pub vault_state: AccountLoader<'info, VaultState>,
