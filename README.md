@@ -183,18 +183,4 @@ The program includes comprehensive error handling with custom error codes:
 
 This project is licensed under the ISC License.
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Submit a pull request
-
-## 📞 Support
-
-For questions and support, please open an issue in the repository.
-
----
-
 **Note**: This is a development version. Use at your own risk and ensure proper testing before deploying to mainnet.
