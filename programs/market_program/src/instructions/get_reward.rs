@@ -14,8 +14,7 @@ pub struct GetReward<'info> {
     #[account(mut)]
     pub bettor: Signer<'info>,
 
-     /// CHECK:
-    /// pool vault and lp mint authority
+    /// CHECK: a authority pda account that is owned by this contract
     #[account(
         seeds = [
             crate::AUTH_SEED.as_bytes(),

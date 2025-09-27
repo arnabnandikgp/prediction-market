@@ -12,7 +12,7 @@ pub struct BuyBet<'info> {
     #[account(mut)]
     pub bettor: Signer<'info>,
 
-    /// CHECK: authority is the authority of the contract
+    /// CHECK: a authority pda account that is owned by this contract
     #[account(
         seeds = [
             crate::AUTH_SEED.as_bytes(),

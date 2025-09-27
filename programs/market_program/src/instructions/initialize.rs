@@ -21,10 +21,7 @@ pub struct Initialize<'info> {
 
     pub market_config: Account<'info, MarketConfig>,
 
-    // initialize token mints for both the conditional tokens
-    // we use seeds to definitively derive at the ctf tokens address
-    /// CHECK:
-    /// pool vault and lp mint authority
+    /// CHECK: a authority pda account that is owned by this contract
     #[account(
         seeds = [
             crate::AUTH_SEED.as_bytes(),
@@ -64,12 +61,10 @@ pub struct Initialize<'info> {
     pub ct1_token_program: Interface<'info, TokenInterface>,
     pub ct2_token_program: Interface<'info, TokenInterface>,
 
-    // shoould be created
-    /// CHECK: vault state account
+    /// CHECK: vault state account should be a pda account owned by the contract
     pub vault_state: UncheckedAccount<'info>,
-    // should be a pda account owned by the contract
 
-    /// CHECK: vault account
+    /// CHECK: vault account that is also owned by the contract and derived accordingly
     #[account(
         mut,
         seeds = [
