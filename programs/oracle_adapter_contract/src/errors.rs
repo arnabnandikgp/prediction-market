@@ -9,5 +9,6 @@ pub enum ErrorCode {
     ResolutionConfigNotFound,
     #[msg("Resolution config already initialized")]
     ResolutionConfigAlreadyInitialized,
-
+    #[msg("Resolution config not expired yet")]
+    ResolutionConfigNotExpiredYet,
 }

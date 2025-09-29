@@ -2,6 +2,8 @@ use std::ops::DerefMut;
 use anchor_lang::prelude::*;
 use crate::states::*;
 
+use market_program::MarketConfig;
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -19,8 +21,8 @@ pub struct Initialize<'info> {
         bump,
         space = ResolutionConfig::LEN,
     )]
-
     pub resolution_config: Account<'info, ResolutionConfig>,
+
     pub system_program: Program<'info, System>,
 }
 

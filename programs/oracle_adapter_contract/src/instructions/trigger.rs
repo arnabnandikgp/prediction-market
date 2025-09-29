@@ -43,15 +43,14 @@ pub struct Trigger<'info> {
 pub fn trigger(ctx: Context<Trigger>) -> Result<()> {
     let price_update = &mut ctx.accounts.price_update;
 
-        if Clock::get()?.unix_timestamp > ctx.accounts.resolution_config.resolution_config_expiration {
-            return Err(ErrorCode::ResolutionConfigExpired.into());
+        if Clock::get()?.unix_timestamp < ctx.accounts.resolution_config.resolution_config_expiration {
+            return Err(ErrorCode::ResolutionConfigNotExpiredYet.into());
         }
         let maximum_age: u64 = 30;
         let feed_id: [u8; 32] = get_feed_id_from_hex(
             "0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43",
         )?;
         let price = price_update.get_price_no_older_than(&Clock::get()?, maximum_age, &feed_id)?;
-
 
         msg!(
             "The price is ({} ± {}) * 10^{}",
