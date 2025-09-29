@@ -39,12 +39,3 @@ pub struct MarketConfig {
 
     pub market_resolution: bool,
 }
-
-
-// market_config.bump = ctx.bumps.market_config;
-// market_config.index = index;
-// market_config.owner = ctx.accounts.signer.key();
-// market_config.name = name;
-// market_config.description = description;
-// market_config.created_at = Clock::get()?.unix_timestamp;
-// market_config.expiration = expiration;
