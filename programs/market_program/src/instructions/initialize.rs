@@ -128,7 +128,7 @@ pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
 
     Ok(())
 }
-
+   
 pub fn create_vault_state<'info>(
     creator: &AccountInfo<'info>,
     vault_state: &AccountInfo<'info>,

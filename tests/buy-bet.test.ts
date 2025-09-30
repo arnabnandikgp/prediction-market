@@ -12,7 +12,7 @@ import {
   getTokenAmount,
   program,
   provider,
-} from "./helpers";
+} from "./helpers.test";
 
 describe("buy-bet instruction", () => {
   before(async () => {

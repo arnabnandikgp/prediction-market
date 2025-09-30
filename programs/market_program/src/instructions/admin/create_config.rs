@@ -8,7 +8,7 @@ pub struct CreateMarketConfig<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
     #[account(
-        init,
+        init_if_needed,
         seeds = [
             MARKET_CONFIG_SEED.as_bytes(),
             &index.to_be_bytes()

@@ -9,7 +9,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   program,
   provider,
-} from "./helpers";
+} from "./helpers.test";
 
 describe("sell-bet instruction", () => {
   before(async () => {
