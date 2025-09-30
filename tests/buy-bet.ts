@@ -86,7 +86,7 @@ describe("buy-bet instruction", () => {
 
     const ct1Balance = await getTokenAmount(ct1Account);
     const ct2Balance = await getTokenAmount(ct2Account);
-    assert.strictEqual(ct1Balance, 0n);
-    assert.strictEqual(ct2Balance, 0n);
+    assert.strictEqual(ct1Balance, BigInt(0));
+    assert.strictEqual(ct2Balance, BigInt(0));
   });
 });

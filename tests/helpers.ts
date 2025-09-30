@@ -51,7 +51,7 @@ export const walletKeypair = (provider.wallet as anchor.Wallet & {
 
 let walletFunded = false;
 export async function ensureWalletFunded(
-  lamports: bigint | number = BigInt(anchor.web3.LAMPORTS_PER_SOL) * 5n,
+  lamports: bigint | number = BigInt(anchor.web3.LAMPORTS_PER_SOL) * BigInt(5),
 ) {
   if (walletFunded) {
     return;
@@ -239,7 +239,7 @@ export async function getTokenAmount(account: anchor.web3.PublicKey) {
     );
     return BigInt(tokenAccount.amount);
   } catch (_err) {
-    return 0n;
+    return BigInt(0);
   }
 }
 

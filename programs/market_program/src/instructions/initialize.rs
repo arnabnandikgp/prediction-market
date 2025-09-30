@@ -15,7 +15,7 @@ pub const AUTH_SEED: &str = "vault_and_lp_mint_auth_seed";
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
-    #[account(mut, address = pubkey!("11111111111111111111111111111111"))]
+    #[account(mut, address = pubkey!("Hoamid9gD8dEgLrirgt3gNnAWhmxYe5LSKrJJUGGd4DA"))]
     // TODO replace with the admin key
     pub creator: Signer<'info>,
 

@@ -4,7 +4,7 @@ import { createMint, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { MarketProgram } from "../target/types/market_program";
 
 const AUTH_SEED = "vault_and_lp_mint_auth_seed";
-const MARKET_CONFIG_SEED = "amm_config";
+const MARKET_CONFIG_SEED = "market_config";
 const VAULT_STATE_SEED = "vault_state";
 const VAULT_SEED = "vault";
 const CT1_SEED = "conditional_token1";
@@ -60,6 +60,7 @@ const deriveInitializePdas = (
   );
   return { vaultState, vault, ct1Mint, ct2Mint, authority };
 };
+
 
 async function createMarketConfigAccount(index: number) {
   const [marketConfig, bump] = deriveMarketConfigPda(index);
@@ -160,6 +161,8 @@ describe("market-program", () => {
       marketConfig,
       collateralMint,
     );
+    //need to convert the types of vault to token account
+    // need to convert the types of ct1mint and ct2mint to mint accounts
 
     const sig = await program.methods
       .initialize()
