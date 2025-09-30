@@ -10,8 +10,12 @@ export const VAULT_SEED = Buffer.from(
 export const POOL_AUTH_SEED = Buffer.from(
   anchor.utils.bytes.utf8.encode("vault_and_lp_mint_auth_seed")
 );
-export const POOL_LPMINT_SEED = Buffer.from(
-  anchor.utils.bytes.utf8.encode("pool_lp_mint")
+export const CONDITIONAL_TOKEN_1_SEED = Buffer.from(
+  anchor.utils.bytes.utf8.encode("conditional_token1")
+);
+
+export const CONDITIONAL_TOKEN_2_SEED = Buffer.from(
+  anchor.utils.bytes.utf8.encode("conditional_token2")
 );
 export const TICK_ARRAY_SEED = Buffer.from(
   anchor.utils.bytes.utf8.encode("tick_array")
@@ -102,13 +106,23 @@ export async function getVaultAddress(
   );
   return [address, bump];
 }
+export async function getct1MintAddress(
+  vaultState: PublicKey,
+  programId: PublicKey
+): Promise<[PublicKey, number]> {
+  const [address, bump] = await PublicKey.findProgramAddress(
+    [CONDITIONAL_TOKEN_1_SEED, vaultState.toBuffer()],
+    programId
+  );
+  return [address, bump];
+}
 
-export async function getPoolLpMintAddress(
+export async function getct2MintAddress(
   pool: PublicKey,
   programId: PublicKey
 ): Promise<[PublicKey, number]> {
   const [address, bump] = await PublicKey.findProgramAddress(
-    [POOL_LPMINT_SEED, pool.toBuffer()],
+    [CONDITIONAL_TOKEN_2_SEED, pool.toBuffer()],
     programId
   );
   return [address, bump];

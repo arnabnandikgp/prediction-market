@@ -6,9 +6,6 @@ import {
   Keypair,
   Signer,
   TransactionInstruction,
-  SystemProgram,
-  Transaction,
-  sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import {
   createMint,
@@ -25,19 +22,24 @@ import {
 } from "@solana/spl-token";
 import { sendTransaction } from "./index";
 
-// create a token mint and a token2022 mint with transferFeeConfig
 
 
-
-export async function createConditionalTokenMintAndAssociatedTokenAccount(
+export async function createConditionalTokenMint(
   connection: Connection,
   payer: Signer,
-  bettor: Signer,
-  transferFeeConfig: { transferFeeBasisPoints: number; MaxFee: number },
+  authority: PublicKey,
+  tokenProgram: PublicKey
 ) {
-  const mint = await createMint(connection, bettor, bettor.publicKey, null, 9);
-  const associatedTokenAccount = await getOrCreateAssociatedTokenAccount(connection, payer, mint, mintAuthority.publicKey, false, "processed", { skipPreflight: true }, TOKEN_2022_PROGRAM_ID);
-  return { mint, associatedTokenAccount };
+  const ctf1_mint = await createMint(
+    connection,
+    payer,
+    authority,
+    null,
+    9,
+    undefined,
+    undefined,
+    tokenProgram
+  );
 }
 
 export async function createTokenMintAndAssociatedTokenAccount(
@@ -182,115 +184,18 @@ export async function createTokenMintAndAssociatedTokenAccount(
     { token1, token1Program },
   ];
 }
-
-async function createMintWithTransferFee(
-  connection: Connection,
-  payer: Signer,
-  mintAuthority: Signer,
-  mintKeypair = Keypair.generate(),
-  transferFeeConfig: { transferFeeBasisPoints: number; MaxFee: number }
-) {
-  const transferFeeConfigAuthority = Keypair.generate();
-  const withdrawWithheldAuthority = Keypair.generate();
-
-  const extensions = [ExtensionType.TransferFeeConfig];
-
-  const mintLen = getMintLen(extensions);
-  const decimals = 9;
-
-  const mintLamports = await connection.getMinimumBalanceForRentExemption(
-    mintLen
-  );
-  const mintTransaction = new Transaction().add(
-    SystemProgram.createAccount({
-      fromPubkey: payer.publicKey,
-      newAccountPubkey: mintKeypair.publicKey,
-      space: mintLen,
-      lamports: mintLamports,
-      programId: TOKEN_2022_PROGRAM_ID,
-    }),
-    createInitializeTransferFeeConfigInstruction(
-      mintKeypair.publicKey,
-      transferFeeConfigAuthority.publicKey,
-      withdrawWithheldAuthority.publicKey,
-      transferFeeConfig.transferFeeBasisPoints,
-      BigInt(transferFeeConfig.MaxFee),
-      TOKEN_2022_PROGRAM_ID
-    ),
-    createInitializeMintInstruction(
-      mintKeypair.publicKey,
-      decimals,
-      mintAuthority.publicKey,
-      null,
-      TOKEN_2022_PROGRAM_ID
-    )
-  );
-  await sendAndConfirmTransaction(
-    connection,
-    mintTransaction,
-    [payer, mintKeypair],
-    undefined
-  );
-
-  return mintKeypair.publicKey;
-}
-
-export async function getUserAndPoolVaultAmount(
+// getuserctandvaultacmount
+export async function getUserCtandVaultAcmount(
   owner: PublicKey,
-  token0Mint: PublicKey,
-  token0Program: PublicKey,
-  token1Mint: PublicKey,
-  token1Program: PublicKey,
-  poolToken0Vault: PublicKey,
-  poolToken1Vault: PublicKey
+  ct1Mint: PublicKey,
+  ct2Mint: PublicKey,
+  ct1Program: PublicKey,
+  ct2Program: PublicKey,
+  authority: PublicKey,
+  vault: PublicKey
 ) {
-  const onwerToken0AccountAddr = getAssociatedTokenAddressSync(
-    token0Mint,
-    owner,
-    false,
-    token0Program
-  );
 
-  const onwerToken1AccountAddr = getAssociatedTokenAddressSync(
-    token1Mint,
-    owner,
-    false,
-    token1Program
-  );
-
-  const onwerToken0Account = await getAccount(
-    anchor.getProvider().connection,
-    onwerToken0AccountAddr,
-    "processed",
-    token0Program
-  );
-
-  const onwerToken1Account = await getAccount(
-    anchor.getProvider().connection,
-    onwerToken1AccountAddr,
-    "processed",
-    token1Program
-  );
-
-  const poolVault0TokenAccount = await getAccount(
-    anchor.getProvider().connection,
-    poolToken0Vault,
-    "processed",
-    token0Program
-  );
-
-  const poolVault1TokenAccount = await getAccount(
-    anchor.getProvider().connection,
-    poolToken1Vault,
-    "processed",
-    token1Program
-  );
-  return {
-    onwerToken0Account,
-    onwerToken1Account,
-    poolVault0TokenAccount,
-    poolVault1TokenAccount,
-  };
+  // logic to get the user ct and vault amount
 }
 
 export function isEqual(amount1: bigint, amount2: bigint) {

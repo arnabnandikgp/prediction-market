@@ -4,7 +4,7 @@
 // 3. update the market config
 // 4. create and update the vault state
 // the authority account is a pda account that is owned by this contract
-
+// the ct1 mint is classified to be the positive asserting case for the questions outcome and vice versa.
 use crate::states::*;
 use crate::utils::*;
 use crate::{error::ErrorCode};

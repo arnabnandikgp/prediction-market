@@ -7,8 +7,7 @@ import {
   Keypair,
   Signer,
   SystemProgram,
-  SYSVAR_RENT_PUBKEY,
-  ComputeBudgetProgram,
+  ValidatorInfo,
 } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
@@ -21,10 +20,9 @@ import {
   getMarketConfigAddress,
   getAuthAddress,
   getVaultStateAddress,
-  getPoolLpMintAddress,
   getVaultAddress,
-  createTokenMintAndAssociatedTokenAccount,
-  getOrcleAdapterPdaAccountAddress,
+  getct1MintAddress,
+  getct2MintAddress,
 } from "./index";
 
 import { ASSOCIATED_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/utils/token";
@@ -38,10 +36,6 @@ export async function setupInitializeMarketTest(
     name: string;
     description: string;
     expiration: BN;
-  },
-  transferFeeConfig: { transferFeeBasisPoints: number; MaxFee: number } = {
-    transferFeeBasisPoints: 0,
-    MaxFee: 0,
   },
   confirmOptions?: ConfirmOptions
 ) {
@@ -83,61 +77,21 @@ export async function setupBuyBetTest(
     confirmOptions
   );
 
-  while (1) {
-    const [{ token0, token0Program }, { token1, token1Program }] =
-      await createTokenMintAndAssociatedTokenAccount(
-        connection,
-        owner,
-        new Keypair(),
-        transferFeeConfig
-      );
-
-    if (tokenProgramRequired != undefined) {
-      if (
-        token0Program.equals(tokenProgramRequired.token0Program) &&
-        token1Program.equals(tokenProgramRequired.token1Program)
-      ) {
-        return await initialize(
-          program,
-          owner,
-          configAddress,
-          token0,
-          token0Program,
-          token1,
-          token1Program,
-          confirmOptions,
-          initAmount
-        );
-      }
-    } else {
-      return await initialize(
-        program,
-        owner,
-        configAddress,
-        token0,
-        token0Program,
-        token1,
-        token1Program,
-        confirmOptions,
-        initAmount
-      );
-    }
-  }
+  //only use the initialze method here
 }
 
 export async function setupSellBetTest(
   program: Program<MarketProgram>,
   connection: Connection,
+  collateralMint: PublicKey,
+  collateralTokenProgram: PublicKey,
+  amount: BN,
   owner: Signer,
   config: {
     index: number;
     name: string;
     description: string;
     expiration: BN;
-  },
-  transferFeeConfig: { transferFeeBasisPoints: number; MaxFee: number } = {
-    transferFeeBasisPoints: 0,
-    MaxFee: 0,
   },
   confirmOptions?: ConfirmOptions
 ) {
@@ -152,39 +106,46 @@ export async function setupSellBetTest(
     confirmOptions
   );
 
-  const [{ token0, token0Program }, { token1, token1Program }] =
-    await createTokenMintAndAssociatedTokenAccount(
-      connection,
-      owner,
-      new Keypair(),
-      transferFeeConfig
-    );
-
-  const { poolAddress, poolState } = await initialize(
+  const { vaultState, vaultStateAddress } = await initialize(
     program,
     owner,
     configAddress,
-    token0,
-    token0Program,
-    token1,
-    token1Program,
+    collateralMint,
+    collateralTokenProgram,
     confirmOptions
   );
 
-  await deposit(
+  const [ct1MintAddress] = await getct1MintAddress(
+    vaultStateAddress,
+    program.programId
+  );
+  const [ct2MintAddress] = await getct2MintAddress(
+    vaultStateAddress,
+    program.programId
+  );
+
+  const [vaultAddress] = await getVaultAddress(
+    vaultStateAddress,
+    collateralMint,
+    program.programId
+  );
+
+  await sellBet(
     program,
     owner,
-    poolState.ammConfig,
-    poolState.token0Mint,
-    poolState.token0Program,
-    poolState.token1Mint,
-    poolState.token1Program,
-    new BN(10000000000),
-    new BN(100000000000),
-    new BN(100000000000),
+    amount,
+    configAddress,
+    collateralMint,
+    collateralTokenProgram,
+    vaultStateAddress,
+    vaultAddress,
+    ct1MintAddress,
+    ct2MintAddress,
     confirmOptions
+
   );
-  return { configAddress, poolAddress, poolState };
+  return { configAddress, vaultState, vaultStateAddress };
+
 }
 
 export async function createMarketConfig(
@@ -227,130 +188,103 @@ export async function createMarketConfig(
 export async function initialize(
   program: Program<MarketProgram>,
   creator: Signer,
-  bettor: PublicKey,
   configAddress: PublicKey,
   collateralMint: PublicKey,
-  ct1Mint: PublicKey,
-  ct2Mint: PublicKey,
+  collateralTokenProgram: PublicKey,
   confirmOptions?: ConfirmOptions,
 ) {
   const [authority] = await getAuthAddress(program.programId);
-  const [vaultState] = await getVaultStateAddress(
+  const [vaultStateAddress] = await getVaultStateAddress(
     configAddress,
     collateralMint,
     program.programId
   );
-  const [vault] = await getVaultAddress(
-    vaultState,
+  const [vaultAddress] = await getVaultAddress(
+    vaultStateAddress,
     collateralMint,
     program.programId
   );
-  const bettorCt1Address = getAssociatedTokenAddressSync(
-    ct1Mint,
-    creator.publicKey,
-    false,
-    TOKEN_2022_PROGRAM_ID
+  const [ct1MintAddress] = await getct1MintAddress(
+    vaultStateAddress,
+    program.programId
   );
-  const bettorCt2Address = getAssociatedTokenAddressSync(
-    ct2Mint,
-    creator.publicKey,
-    false,
-    TOKEN_2022_PROGRAM_ID
+  const [ct2MintAddress] = await getct2MintAddress(
+    vaultStateAddress,
+    program.programId
   );
   await program.methods
     .initialize()
     .accountsPartial({
       creator: creator.publicKey,
       marketConfig: configAddress,
-      authority: auth,
-      ct1Mint,
-      ct2Mint,
+      authority: authority,
+      ct1Mint: ct1MintAddress,
+      ct2Mint: ct2MintAddress,
       ct1TokenProgram: TOKEN_2022_PROGRAM_ID,
       ct2TokenProgram: TOKEN_2022_PROGRAM_ID,
-      vaultState,
-      vault,
-      collateralMint,
+      vaultState: vaultStateAddress,
+      vault: vaultAddress,
+      collateralMint: collateralMint,
       collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
-      tokenProgram: TOKEN_2022_PROGRAM_ID,
+      tokenProgram: collateralTokenProgram,
       systemProgram: SystemProgram.programId,
     })
     .rpc(confirmOptions);
-  return { vaultState, vault, ct1Mint, ct2Mint, authority };
+
+  const vaultState = await program.account.vaultState.fetch(vaultStateAddress);
+  return { vaultState, vaultStateAddress };
 }
 
 export async function buyBet(
   program: Program<MarketProgram>,
   owner: Signer,
+  amount: BN,
   configAddress: PublicKey,
-  token0: PublicKey,
-  token0Program: PublicKey,
-  token1: PublicKey,
-  token1Program: PublicKey,
-  lp_token_amount: BN,
-  maximum_token_0_amount: BN,
-  maximum_token_1_amount: BN,
+  collateralMint: PublicKey,
+  collateralTokenProgram: PublicKey,
+  vaultStateAddress: PublicKey,
+  vaultAddress: PublicKey,
+  ct1MintAddress: PublicKey,
+  ct2MintAddress: PublicKey,
   confirmOptions?: ConfirmOptions
 ) {
-  const [auth] = await getAuthAddress(program.programId);
-  const [poolAddress] = await getPoolAddress(
-    configAddress,
-    token0,
-    token1,
-    program.programId
-  );
-
-  const [lpMintAddress] = await getPoolLpMintAddress(
-    poolAddress,
-    program.programId
-  );
-  const [vault0] = await getPoolVaultAddress(
-    poolAddress,
-    token0,
-    program.programId
-  );
-  const [vault1] = await getPoolVaultAddress(
-    poolAddress,
-    token1,
-    program.programId
-  );
-  const [ownerLpToken] = await PublicKey.findProgramAddress(
-    [
-      owner.publicKey.toBuffer(),
-      TOKEN_PROGRAM_ID.toBuffer(),
-      lpMintAddress.toBuffer(),
-    ],
-    ASSOCIATED_PROGRAM_ID
-  );
-
-  const onwerToken0 = getAssociatedTokenAddressSync(
-    token0,
+  const [authority] = await getAuthAddress(program.programId);
+  const ct1Account = getAssociatedTokenAddressSync(
+    ct1MintAddress,
     owner.publicKey,
     false,
-    token0Program
+    TOKEN_2022_PROGRAM_ID
   );
-  const onwerToken1 = getAssociatedTokenAddressSync(
-    token1,
+  const ct2Account = getAssociatedTokenAddressSync(
+    ct2MintAddress,
     owner.publicKey,
     false,
-    token1Program
+    TOKEN_2022_PROGRAM_ID
+  );
+  const collateralAccount = getAssociatedTokenAddressSync(
+    collateralMint,
+    owner.publicKey,
+    false,
+    collateralTokenProgram
   );
 
   const tx = await program.methods
-    .deposit(lp_token_amount, maximum_token_0_amount, maximum_token_1_amount)
-    .accounts({
-      owner: owner.publicKey,
-      authority: auth,
-      poolState: poolAddress,
-      ownerLpToken,
-      token0Account: onwerToken0,
-      token1Account: onwerToken1,
-      token0Vault: vault0,
-      token1Vault: vault1,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      tokenProgram2022: TOKEN_2022_PROGRAM_ID,
-      vault0Mint: token0,
-      vault1Mint: token1,
-      lpMint: lpMintAddress,
+    .buyBet(amount)
+    .accountsPartial({
+      bettor: owner.publicKey,
+      authority,
+      collateralAccount: collateralAccount,
+      ct1Mint: ct1MintAddress,
+      vaultState: vaultStateAddress,
+      vault: vaultAddress,
+      ct2Mint: ct2MintAddress,
+      ct1Account,
+      ct2Account,
+      collateralMint: collateralMint,
+      collateralTokenProgram: collateralTokenProgram,
+      tokenProgram: collateralTokenProgram,
+      associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
     })
     .rpc(confirmOptions);
   return tx;
@@ -359,80 +293,57 @@ export async function buyBet(
 export async function sellBet(
   program: Program<MarketProgram>,
   owner: Signer,
+  amount: BN,
   configAddress: PublicKey,
-  token0: PublicKey,
-  token0Program: PublicKey,
-  token1: PublicKey,
-  token1Program: PublicKey,
-  lp_token_amount: BN,
-  minimum_token_0_amount: BN,
-  minimum_token_1_amount: BN,
+  collateralMint: PublicKey,
+  collateralTokenProgram: PublicKey,
+  vaultStateAddress: PublicKey,
+  vaultAddress: PublicKey,
+  ct1MintAddress: PublicKey,
+  ct2MintAddress: PublicKey,
   confirmOptions?: ConfirmOptions
 ) {
-  const [auth] = await getAuthAddress(program.programId);
-  const [poolAddress] = await getPoolAddress(
-    configAddress,
-    token0,
-    token1,
-    program.programId
-  );
+  const [authority] = await getAuthAddress(program.programId);
 
-  const [lpMintAddress] = await getPoolLpMintAddress(
-    poolAddress,
-    program.programId
-  );
-  const [vault0] = await getPoolVaultAddress(
-    poolAddress,
-    token0,
-    program.programId
-  );
-  const [vault1] = await getPoolVaultAddress(
-    poolAddress,
-    token1,
-    program.programId
-  );
-  const [ownerLpToken] = await PublicKey.findProgramAddress(
-    [
-      owner.publicKey.toBuffer(),
-      TOKEN_PROGRAM_ID.toBuffer(),
-      lpMintAddress.toBuffer(),
-    ],
-    ASSOCIATED_PROGRAM_ID
-  );
-
-  const onwerToken0 = getAssociatedTokenAddressSync(
-    token0,
+  const collateralAccount = getAssociatedTokenAddressSync(
+    collateralMint,
     owner.publicKey,
     false,
-    token0Program
+    collateralTokenProgram
   );
-  const onwerToken1 = getAssociatedTokenAddressSync(
-    token1,
+
+  const ct1Account = getAssociatedTokenAddressSync(
+    ct1MintAddress,
     owner.publicKey,
     false,
-    token1Program
+    TOKEN_2022_PROGRAM_ID
+  );
+  const ct2Account = getAssociatedTokenAddressSync(
+    ct2MintAddress,
+    owner.publicKey,
+    false,
+    TOKEN_2022_PROGRAM_ID
   );
 
   const tx = await program.methods
-    .withdraw(lp_token_amount, minimum_token_0_amount, minimum_token_1_amount)
-    .accounts({
-      owner: owner.publicKey,
-      authority: auth,
-      poolState: poolAddress,
-      ownerLpToken,
-      token0Account: onwerToken0,
-      token1Account: onwerToken1,
-      token0Vault: vault0,
-      token1Vault: vault1,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      tokenProgram2022: TOKEN_2022_PROGRAM_ID,
-      vault0Mint: token0,
-      vault1Mint: token1,
-      lpMint: lpMintAddress,
-      memoProgram: new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
+    .sellBet(amount)
+    .accountsPartial({
+      bettor: owner.publicKey,
+      authority,
+      collateralAccount,
+      vaultState: vaultStateAddress,
+      vault: vaultAddress,
+      ct1Mint: ct1MintAddress,
+      ct2Mint: ct2MintAddress,
+      ct1Account,
+      ct2Account,
+      collateralMint: collateralMint,
+      collateralTokenProgram: collateralTokenProgram,
+      tokenProgram: collateralTokenProgram,
+      associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
     })
-    .rpc(confirmOptions)
-    .catch();
+    .rpc(confirmOptions);
 
   return tx;
 }
@@ -441,66 +352,14 @@ export async function getReward(
   program: Program<MarketProgram>,
   owner: Signer,
   configAddress: PublicKey,
-  inputToken: PublicKey,
-  inputTokenProgram: PublicKey,
-  outputToken: PublicKey,
-  outputTokenProgram: PublicKey,
-  amount_in: BN,
-  minimum_amount_out: BN,
+  amount: BN,
   confirmOptions?: ConfirmOptions
 ) {
   const [auth] = await getAuthAddress(program.programId);
-  const [poolAddress] = await getPoolAddress(
-    configAddress,
-    inputToken,
-    outputToken,
-    program.programId
-  );
-
-  const [inputVault] = await getPoolVaultAddress(
-    poolAddress,
-    inputToken,
-    program.programId
-  );
-  const [outputVault] = await getPoolVaultAddress(
-    poolAddress,
-    outputToken,
-    program.programId
-  );
-
-  const inputTokenAccount = getAssociatedTokenAddressSync(
-    inputToken,
-    owner.publicKey,
-    false,
-    inputTokenProgram
-  );
-  const outputTokenAccount = getAssociatedTokenAddressSync(
-    outputToken,
-    owner.publicKey,
-    false,
-    outputTokenProgram
-  );
-  const [observationAddress] = await getOrcleAccountAddress(
-    poolAddress,
-    program.programId
-  );
-
   const tx = await program.methods
-    .swapBaseInput(amount_in, minimum_amount_out)
+    .getReward(amount)
     .accounts({
-      payer: owner.publicKey,
-      authority: auth,
-      ammConfig: configAddress,
-      poolState: poolAddress,
-      inputTokenAccount,
-      outputTokenAccount,
-      inputVault,
-      outputVault,
-      inputTokenProgram: inputTokenProgram,
-      outputTokenProgram: outputTokenProgram,
-      inputTokenMint: inputToken,
-      outputTokenMint: outputToken,
-      observationState: observationAddress,
+      
     })
     .rpc(confirmOptions);
 
