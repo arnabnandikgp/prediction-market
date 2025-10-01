@@ -41,7 +41,7 @@ To take a directional position (e.g., only YES or only NO):
 
 ### 3. **Market Resolution (resolve_market)**
 Based on binary questions (e.g., "Will BTC price be above $100k at 12:00 UTC?"):
-- Admin calls `resolve_market` using data from the **oracle_adapter_contract**
+- admin calls the **oracle_adapter_contract** after the expiration time which in turn calles the `resolve_market` with the result.
 - Oracle determines which token (CT1 or CT2) is the winning token
 - Only winning token holders can redeem collateral
 
@@ -68,7 +68,7 @@ After market resolution:
 
 2. **Install dependencies**
    ```bash
-   yarn install
+   npm install
    ```
 
 3. **Build the programs**
@@ -76,26 +76,11 @@ After market resolution:
    anchor build
    ```
 
-4. **Start local validator** (in a separate terminal)
-   ```bash
-   solana-test-validator
-   ```
-
-5. **Deploy to localnet**
-   ```bash
-   anchor deploy
-   ```
-
 ## 🧪 Testing
 
 Run the test suite:
 ```bash
 anchor test
-```
-
-Or run specific tests:
-```bash
-yarn test
 ```
 
 ## 📖 Usage
