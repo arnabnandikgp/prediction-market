@@ -97,7 +97,6 @@ export async function getVaultStateAddress(
 
 export async function getVaultAddress(
   vaultState: PublicKey,
-  vaultTokenMint: PublicKey,
   programId: PublicKey
 ): Promise<[PublicKey, number]> {
   const [address, bump] = await PublicKey.findProgramAddress(

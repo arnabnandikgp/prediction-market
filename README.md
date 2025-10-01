@@ -15,16 +15,40 @@ A decentralized prediction market built on Solana using the Anchor framework. Th
 
 ### Core Components
 
-- **Market Program**: Main program handling market operations
-- **Oracle Adapter**: Handles external data feeds for market resolution
-- **AMM Program**: Automated market maker for token swaps
-- **Prediction Market**: Orchestrates the overall system
+- **Market Program**: Main program handling market operations, vault management, and conditional token minting
+- **Oracle Adapter Contract**: Handles external data feeds for binary outcome market resolution (e.g., will BTC price go up or down after a stipulated time)
+- **Secondary Market Integration**: Token conversion between YES/NO positions happens via Raydium CP-AMM, handled by separate backend code with dedicated client-side implementation
 
 ### Key Data Structures
 
 - **MarketConfig**: Stores market metadata and configuration
 - **VaultState**: Manages collateral and conditional token balances
 - **Permission**: Handles access control for admin functions
+
+## 🔄 How It Works
+
+### 1. **Buying Into a Market (buy_bet)**
+When you call `buy_bet` with collateral:
+- Your collateral is deposited into the vault
+- You receive equal amounts of **BOTH** YES tokens (CT1) and NO tokens (CT2)
+- Example: Deposit 100 USDC → Receive 100 CT1 + 100 CT2
+
+### 2. **Trading Positions (Secondary Market)**
+To take a directional position (e.g., only YES or only NO):
+- Trade your unwanted tokens on the **Raydium CP-AMM** secondary market
+- Example: Sell your 100 CT2 (NO) tokens to buy more CT1 (YES) tokens
+- This secondary market logic is handled by separate backend and client code
+
+### 3. **Market Resolution (resolve_market)**
+Based on binary questions (e.g., "Will BTC price be above $100k at 12:00 UTC?"):
+- Admin calls `resolve_market` using data from the **oracle_adapter_contract**
+- Oracle determines which token (CT1 or CT2) is the winning token
+- Only winning token holders can redeem collateral
+
+### 4. **Collecting Rewards (get_reward)**
+After market resolution:
+- Winning token holders redeem their tokens for collateral at 1:1 ratio
+- Example: If CT1 wins and you hold 150 CT1 → Redeem for 150 USDC
 
 ## 📋 Prerequisites
 
@@ -93,14 +117,18 @@ const marketConfig = await program.methods
 ### Placing a Bet
 
 ```typescript
-// Buy a bet (Yes position)
+// Buy bet: Deposits collateral and mints equal amounts of BOTH YES and NO tokens (CT1 and CT2)
+// This creates a complete set of conditional tokens representing both possible outcomes
 const buyTx = await program.methods
-  .buyBet(new anchor.BN(1000000)) // bet amount in lamports
+  .buyBet(new anchor.BN(1000000)) // collateral amount - mints equal amount of both tokens
   .accounts({
     bettor: user.publicKey,
     // ... other required accounts
   })
   .rpc();
+
+// Note: To convert between YES and NO tokens or to trade them, 
+// use the secondary market via Raydium CP-AMM (handled separately)
 ```
 
 ### Collecting Rewards
@@ -120,12 +148,12 @@ const rewardTx = await program.methods
 
 ### Core Functions
 
-- `create_market_config`: Initialize a new prediction market
-- `initialize`: Set up market vault and conditional tokens
-- `buy_bet`: Purchase conditional tokens (place a bet)
-- `sell_bet`: Sell conditional tokens (exit a position)
-- `get_reward`: Collect rewards after market resolution
-- `resolve_market`: Admin function to resolve the market
+- `create_market_config`: Initialize a new prediction market for binary outcomes
+- `initialize`: Set up market vault and conditional tokens (CT1/CT2 representing YES/NO)
+- `buy_bet`: Deposit collateral and mint equal amounts of BOTH YES and NO tokens
+- `sell_bet`: Burn equal amounts of both tokens to redeem collateral (exit a complete position)
+- `get_reward`: Collect rewards after market resolution using winning tokens
+- `resolve_market`: Admin function to resolve binary outcome markets (e.g., did BTC price go up or down after the stipulated time). Works with oracle_adapter_contract for external data feeds.
 
 ### Admin Functions
 
@@ -152,13 +180,35 @@ const rewardTx = await program.methods
 ```
 prediction-market/
 ├── programs/
-│   ├── market_program/          # Main market logic
-│   ├── oracle_adapter/          # External data integration
-│   ├── amm_program/             # Automated market maker
-│   └── prediction_market/       # System orchestration
-├── tests/                       # Test suite
-├── migrations/                  # Deployment scripts
-└── app/                         # Frontend application
+│   ├── market_program/              # Main market logic
+│   │   ├── src/
+│   │   │   ├── instructions/        # Market operations (buy_bet, sell_bet, etc.)
+│   │   │   ├── states/              # VaultState, MarketConfig, Permission
+│   │   │   ├── utils/               # Helper functions
+│   │   │   ├── error.rs             # Custom error codes
+│   │   │   └── lib.rs               # Program entry point
+│   │   └── Cargo.toml
+│   └── oracle_adapter_contract/     # Binary outcome oracle integration
+│       ├── src/
+│       │   ├── instructions/        # Oracle data feed handling
+│       │   ├── states/              # Oracle state management
+│       │   ├── errors.rs            # Oracle-specific errors
+│       │   └── lib.rs               # Oracle program entry point
+│       └── Cargo.toml
+├── tests/                           # Test suite
+│   ├── buy-bet.test.ts
+│   ├── sell-bet.test.ts
+│   ├── get-reward.test.ts
+│   └── utils/                       # Test utilities
+├── migrations/                      # Deployment scripts
+├── target/                          # Build artifacts
+│   ├── deploy/                      # Compiled programs
+│   ├── idl/                         # Interface definitions
+│   └── types/                       # TypeScript types
+└── app/                             # Frontend application
+
+Note: Secondary market trading (YES ↔ NO token conversion) is handled 
+via Raydium CP-AMM integration (separate backend/client implementation).
 ```
 
 ## 🚨 Error Handling
@@ -181,6 +231,5 @@ The program includes comprehensive error handling with custom error codes:
 
 ## 📝 License
 
-This project is licensed under the ISC License.
+This project is licensed under the GNU General Public License v2.0 (GPL-2).
 
-**Note**: This is a development version. Use at your own risk and ensure proper testing before deploying to mainnet.

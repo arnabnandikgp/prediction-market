@@ -58,6 +58,8 @@ export async function setupBuyBetTest(
   program: Program<MarketProgram>,
   connection: Connection,
   bettor: Signer,
+  collateralMint: PublicKey,
+  collateralTokenProgram: PublicKey,
   config: {
     index: number;
     name: string;
@@ -77,7 +79,15 @@ export async function setupBuyBetTest(
     confirmOptions
   );
 
-  //only use the initialze method here
+  const { vaultState, vaultStateAddress } = await initialize(
+    program,
+    bettor,
+    configAddress,
+    collateralMint,
+    collateralTokenProgram,
+    confirmOptions
+  );
+  return { configAddress, vaultState, vaultStateAddress };
 }
 
 export async function setupSellBetTest(
@@ -126,7 +136,6 @@ export async function setupSellBetTest(
 
   const [vaultAddress] = await getVaultAddress(
     vaultStateAddress,
-    collateralMint,
     program.programId
   );
 
@@ -201,7 +210,6 @@ export async function initialize(
   );
   const [vaultAddress] = await getVaultAddress(
     vaultStateAddress,
-    collateralMint,
     program.programId
   );
   const [ct1MintAddress] = await getct1MintAddress(
