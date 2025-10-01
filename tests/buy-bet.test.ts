@@ -1,92 +1,362 @@
-import assert from "node:assert/strict";
-import { before, describe, it } from "node:test";
 import * as anchor from "@coral-xyz/anchor";
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
-import {
-  ensureWalletFunded,
-  setupInitializedMarket,
-  TOKEN_2022_PROGRAM_ID,
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  getOrCreateAta,
-  mintToAta,
-  getTokenAmount,
-  program,
-  provider,
-} from "./helpers.test";
+import { expect } from "chai";
+import { 
+  createMint, 
+  TOKEN_2022_PROGRAM_ID, 
+  getOrCreateAssociatedTokenAccount,
+  mintTo,
+  getAccount
+} from "@solana/spl-token";
+import { MarketProgram } from "../target/types/market_program";
+import { 
+  setupBuyBetTest,
+  buyBet,
+  getVaultAddress,
+  getct1MintAddress,
+  getct2MintAddress,
+  getUserCtAccountInfo,
+  isEqual
+} from "./utils";
 
-describe("buy-bet instruction", () => {
+const provider = anchor.AnchorProvider.env();
+anchor.setProvider(provider);
+const program = anchor.workspace.MarketProgram as anchor.Program<MarketProgram>;
+const connection = provider.connection;
+const walletKeypair = (provider.wallet as anchor.Wallet & { payer: anchor.web3.Keypair }).payer;
+
+const nextIndex = (() => {
+  let counter = Math.floor(Date.now() % 50000);
+  return () => {
+    counter = (counter + 1) % 65535;
+    if (counter === 0) counter = 1;
+    return counter;
+  };
+})();
+
+describe("Buy Bet Tests", () => {
+  let collateralMint: anchor.web3.PublicKey;
+
   before(async () => {
-    await ensureWalletFunded();
+    const sig = await connection.requestAirdrop(
+      provider.wallet.publicKey,
+      anchor.web3.LAMPORTS_PER_SOL * 5
+    );
+    await connection.confirmTransaction(sig, "confirmed");
+
+    collateralMint = await createMint(
+      connection,
+      walletKeypair,
+      walletKeypair.publicKey,
+      null,
+      9,
+      undefined,
+      undefined,
+      TOKEN_2022_PROGRAM_ID
+    );
   });
 
-  it("fails to mint conditional tokens with current signer seeds", async () => {
-    const { marketConfig, collateralMint, vaultState, vault, ct1Mint, ct2Mint, authority } =
-      await setupInitializedMarket();
+  describe("Test 2a: Buy bet operations and verify conditional tokens are credited", () => {
+    it("should credit correct number of conditional tokens after single buy bet", async () => {
+      const index = nextIndex();
+      const name = `Test Market ${index}`;
+      const description = `Test Description ${index}`;
+      const expiration = new anchor.BN(Math.floor(Date.now() / 1000) + 86400);
 
-    const bettor = provider.wallet.publicKey;
-    const collateralAccount = await getOrCreateAta(collateralMint, bettor);
-    await mintToAta(collateralMint, collateralAccount.address, BigInt(1_000_000));
+      const config = {
+        index,
+        name,
+        description,
+        expiration
+      };
 
-    const vaultBalanceBefore = await getTokenAmount(vault);
-    const vaultStateBefore = await program.account.vaultState.fetch(vaultState);
-
-    const ct1Account = getAssociatedTokenAddressSync(
-      ct1Mint,
-      bettor,
-      false,
-      TOKEN_2022_PROGRAM_ID,
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-    );
-    const ct2Account = getAssociatedTokenAddressSync(
-      ct2Mint,
-      bettor,
-      false,
-      TOKEN_2022_PROGRAM_ID,
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-    );
-
-    try {
-      await program.methods
-        .buyBet(new anchor.BN(500_000))
-        .accountsPartial({
-          bettor,
-          authority,
-          collateralAccount: collateralAccount.address,
-          ct1Mint,
-          vaultState,
-          vault,
-          ct2Mint,
-          ct1Account,
-          ct2Account,
-          collateralMint,
-          collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
-          tokenProgram: TOKEN_2022_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        .rpc();
-      assert.fail("expected buyBet to fail because PDA signer seeds are inconsistent");
-    } catch (err) {
-      const message = (err as Error).message.toLowerCase();
-      assert.ok(
-        message.includes("invalid seeds") ||
-          message.includes("signature verification failed") ||
-          message.includes("custom program error"),
+      const { configAddress, vaultState, vaultStateAddress } = await setupBuyBetTest(
+        program,
+        connection,
+        walletKeypair,
+        collateralMint,
+        TOKEN_2022_PROGRAM_ID,
+        config
       );
-    }
 
-    const vaultBalanceAfter = await getTokenAmount(vault);
-    assert.strictEqual(vaultBalanceAfter, vaultBalanceBefore);
+      const userCollateralAccount = await getOrCreateAssociatedTokenAccount(
+        connection,
+        walletKeypair,
+        collateralMint,
+        walletKeypair.publicKey,
+        false,
+        "confirmed",
+        { skipPreflight: true },
+        TOKEN_2022_PROGRAM_ID
+      );
 
-    const vaultStateAfter = await program.account.vaultState.fetch(vaultState);
-    assert.strictEqual(
-      vaultStateAfter.vaultCollateralBalance.toString(),
-      vaultStateBefore.vaultCollateralBalance.toString(),
-    );
+      const mintAmount = BigInt(1_000_000_000);
+      await mintTo(
+        connection,
+        walletKeypair,
+        collateralMint,
+        userCollateralAccount.address,
+        walletKeypair,
+        mintAmount,
+        [],
+        { skipPreflight: true },
+        TOKEN_2022_PROGRAM_ID
+      );
 
-    const ct1Balance = await getTokenAmount(ct1Account);
-    const ct2Balance = await getTokenAmount(ct2Account);
-    assert.strictEqual(ct1Balance, BigInt(0));
-    assert.strictEqual(ct2Balance, BigInt(0));
+      const [ct1MintAddress] = await getct1MintAddress(vaultStateAddress, program.programId);
+      const [ct2MintAddress] = await getct2MintAddress(vaultStateAddress, program.programId);
+      const [vaultAddress] = await getVaultAddress(vaultStateAddress, program.programId);
+
+      const buyAmount = new anchor.BN(500_000_000);
+
+      await buyBet(
+        program,
+        walletKeypair,
+        buyAmount,
+        configAddress,
+        collateralMint,
+        TOKEN_2022_PROGRAM_ID,
+        vaultStateAddress,
+        vaultAddress,
+        ct1MintAddress,
+        ct2MintAddress
+      );
+
+      const { ct1Amount, ct2Amount } = await getUserCtAccountInfo(
+        connection,
+        walletKeypair.publicKey,
+        ct1MintAddress,
+        ct2MintAddress
+      );
+      console.log("vmeow")
+      console.log("buyAmount", buyAmount);
+      console.log("ct1Amount", ct1Amount);
+      console.log("ct2Amount", ct2Amount);
+
+      expect(isEqual(ct1Amount, BigInt(buyAmount.toString()))).to.be.true;
+      expect(isEqual(ct2Amount, BigInt(buyAmount.toString()))).to.be.true;
+
+      const vaultStateAccount = await program.account.vaultState.fetch(vaultStateAddress);
+      expect(isEqual(
+        BigInt(vaultStateAccount.vaultCollateralBalance.toString()),
+        BigInt(buyAmount.toString())
+      )).to.be.true;
+
+      const vaultAccountInfo = await getAccount(
+        connection,
+        vaultAddress,
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      );
+      expect(isEqual(vaultAccountInfo.amount, BigInt(buyAmount.toString()))).to.be.true;
+    });
+
+    it("should correctly accumulate conditional tokens after multiple buy bet operations", async () => {
+      const index = nextIndex();
+      const name = `Test Market ${index}`;
+      const description = `Test Description ${index}`;
+      const expiration = new anchor.BN(Math.floor(Date.now() / 1000) + 86400);
+
+      const config = {
+        index,
+        name,
+        description,
+        expiration
+      };
+
+      const { configAddress, vaultState, vaultStateAddress } = await setupBuyBetTest(
+        program,
+        connection,
+        walletKeypair,
+        collateralMint,
+        TOKEN_2022_PROGRAM_ID,
+        config
+      );
+
+      const userCollateralAccount = await getOrCreateAssociatedTokenAccount(
+        connection,
+        walletKeypair,
+        collateralMint,
+        walletKeypair.publicKey,
+        false,
+        "confirmed",
+        { skipPreflight: true },
+        TOKEN_2022_PROGRAM_ID
+      );
+
+      const mintAmount = BigInt(2_000_000_000);
+      await mintTo(
+        connection,
+        walletKeypair,
+        collateralMint,
+        userCollateralAccount.address,
+        walletKeypair,
+        mintAmount,
+        [],
+        { skipPreflight: true },
+        TOKEN_2022_PROGRAM_ID
+      );
+
+      const [ct1MintAddress] = await getct1MintAddress(vaultStateAddress, program.programId);
+      const [ct2MintAddress] = await getct2MintAddress(vaultStateAddress, program.programId);
+      const [vaultAddress] = await getVaultAddress(vaultStateAddress, program.programId);
+
+      const buyAmount1 = new anchor.BN(300_000_000);
+      await buyBet(
+        program,
+        walletKeypair,
+        buyAmount1,
+        configAddress,
+        collateralMint,
+        TOKEN_2022_PROGRAM_ID,
+        vaultStateAddress,
+        vaultAddress,
+        ct1MintAddress,
+        ct2MintAddress
+      );
+
+      const afterFirstBuy = await getUserCtAccountInfo(
+        connection,
+        walletKeypair.publicKey,
+        ct1MintAddress,
+        ct2MintAddress
+      );
+
+      expect(isEqual(afterFirstBuy.ct1Amount, BigInt(buyAmount1.toString()))).to.be.true;
+      expect(isEqual(afterFirstBuy.ct2Amount, BigInt(buyAmount1.toString()))).to.be.true;
+
+      const buyAmount2 = new anchor.BN(200_000_000);
+      await buyBet(
+        program,
+        walletKeypair,
+        buyAmount2,
+        configAddress,
+        collateralMint,
+        TOKEN_2022_PROGRAM_ID,
+        vaultStateAddress,
+        vaultAddress,
+        ct1MintAddress,
+        ct2MintAddress
+      );
+
+      const afterSecondBuy = await getUserCtAccountInfo(
+        connection,
+        walletKeypair.publicKey,
+        ct1MintAddress,
+        ct2MintAddress
+      );
+
+      const expectedTotal = BigInt(buyAmount1.add(buyAmount2).toString());
+      expect(isEqual(afterSecondBuy.ct1Amount, expectedTotal)).to.be.true;
+      expect(isEqual(afterSecondBuy.ct2Amount, expectedTotal)).to.be.true;
+
+      const buyAmount3 = new anchor.BN(150_000_000);
+      await buyBet(
+        program,
+        walletKeypair,
+        buyAmount3,
+        configAddress,
+        collateralMint,
+        TOKEN_2022_PROGRAM_ID,
+        vaultStateAddress,
+        vaultAddress,
+        ct1MintAddress,
+        ct2MintAddress
+      );
+
+      const afterThirdBuy = await getUserCtAccountInfo(
+        connection,
+        walletKeypair.publicKey,
+        ct1MintAddress,
+        ct2MintAddress
+      );
+
+      const expectedFinalTotal = BigInt(buyAmount1.add(buyAmount2).add(buyAmount3).toString());
+      expect(isEqual(afterThirdBuy.ct1Amount, expectedFinalTotal)).to.be.true;
+      expect(isEqual(afterThirdBuy.ct2Amount, expectedFinalTotal)).to.be.true;
+
+      const vaultStateAccount = await program.account.vaultState.fetch(vaultStateAddress);
+      expect(isEqual(
+        BigInt(vaultStateAccount.vaultCollateralBalance.toString()),
+        expectedFinalTotal
+      )).to.be.true;
+    });
+
+    it("should fail when user has insufficient collateral", async () => {
+      const index = nextIndex();
+      const name = `Test Market ${index}`;
+      const description = `Test Description ${index}`;
+      const expiration = new anchor.BN(Math.floor(Date.now() / 1000) + 86400);
+
+      const config = {
+        index,
+        name,
+        description,
+        expiration
+      };
+
+      const { configAddress, vaultState, vaultStateAddress } = await setupBuyBetTest(
+        program,
+        connection,
+        walletKeypair,
+        collateralMint,
+        TOKEN_2022_PROGRAM_ID,
+        config
+      );
+
+      const userCollateralAccount = await getOrCreateAssociatedTokenAccount(
+        connection,
+        walletKeypair,
+        collateralMint,
+        walletKeypair.publicKey,
+        false,
+        "confirmed",
+        { skipPreflight: true },
+        TOKEN_2022_PROGRAM_ID
+      );
+
+      const mintAmount = BigInt(100_000_000);
+      await mintTo(
+        connection,
+        walletKeypair,
+        collateralMint,
+        userCollateralAccount.address,
+        walletKeypair,
+        mintAmount,
+        [],
+        { skipPreflight: true },
+        TOKEN_2022_PROGRAM_ID
+      );
+
+      const [ct1MintAddress] = await getct1MintAddress(vaultStateAddress, program.programId);
+      const [ct2MintAddress] = await getct2MintAddress(vaultStateAddress, program.programId);
+      const [vaultAddress] = await getVaultAddress(vaultStateAddress, program.programId);
+
+      const tooMuchBuyAmount = new anchor.BN(200_000_000);
+
+      try {
+        await buyBet(
+          program,
+          walletKeypair,
+          tooMuchBuyAmount,
+          configAddress,
+          collateralMint,
+          TOKEN_2022_PROGRAM_ID,
+          vaultStateAddress,
+          vaultAddress,
+          ct1MintAddress,
+          ct2MintAddress
+        );
+        expect.fail("Should have failed with insufficient collateral");
+      } catch (err) {
+        expect(err).to.exist;
+        const errorMessage = err.toString();
+        expect(errorMessage).to.satisfy((msg: string) => 
+          msg.includes("insufficient") || 
+          msg.includes("Insufficient") || 
+          msg.includes("0x1") ||
+          msg.includes("custom program error")
+        );
+      }
+    });
   });
 });

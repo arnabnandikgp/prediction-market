@@ -46,11 +46,13 @@ pub struct VaultState {
     pub winning_ct_mint: Pubkey,
 }
 impl VaultState {
-    pub const LEN: usize = 8 + 32 + 32 + 8 + 8 + 32 + 32 + 32 + 32;
+    pub const LEN: usize = 8 + 32 + 1 + 32 + 32 + 8 + 8 + 8 + 32 + 32 + 32 + 32 + 1 + 32;
 
     pub fn initialize(
         &mut self,
+        auth_bump: u8,
         market_config: Pubkey,
+        vault: Pubkey,
         vault_creator: Pubkey,
         vault_created_at: i64,
         vault_expiration: i64,
@@ -59,6 +61,8 @@ impl VaultState {
         ctf1_token_program: Pubkey,
         ctf2_token_program: Pubkey,
     ) -> Result<()> {
+        self.auth_bump = auth_bump;
+        self.vault = vault;
         self.market_config = market_config;
         self.vault_creator = vault_creator;
         self.vault_created_at = vault_created_at;

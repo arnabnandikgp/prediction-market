@@ -95,7 +95,7 @@ export async function setupSellBetTest(
   connection: Connection,
   collateralMint: PublicKey,
   collateralTokenProgram: PublicKey,
-  amount: BN,
+  buyAmount: BN,
   owner: Signer,
   config: {
     index: number;
@@ -139,10 +139,10 @@ export async function setupSellBetTest(
     program.programId
   );
 
-  await sellBet(
+  await buyBet(
     program,
     owner,
-    amount,
+    buyAmount,
     configAddress,
     collateralMint,
     collateralTokenProgram,
@@ -151,10 +151,16 @@ export async function setupSellBetTest(
     ct1MintAddress,
     ct2MintAddress,
     confirmOptions
-
   );
-  return { configAddress, vaultState, vaultStateAddress };
-
+  
+  return { 
+    configAddress, 
+    vaultState, 
+    vaultStateAddress, 
+    ct1MintAddress, 
+    ct2MintAddress, 
+    vaultAddress 
+  };
 }
 
 export async function createMarketConfig(
@@ -220,27 +226,37 @@ export async function initialize(
     vaultStateAddress,
     program.programId
   );
-  await program.methods
-    .initialize()
-    .accountsPartial({
-      creator: creator.publicKey,
-      marketConfig: configAddress,
-      authority: authority,
-      ct1Mint: ct1MintAddress,
-      ct2Mint: ct2MintAddress,
-      ct1TokenProgram: TOKEN_2022_PROGRAM_ID,
-      ct2TokenProgram: TOKEN_2022_PROGRAM_ID,
-      vaultState: vaultStateAddress,
-      vault: vaultAddress,
-      collateralMint: collateralMint,
-      collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
-      tokenProgram: collateralTokenProgram,
-      systemProgram: SystemProgram.programId,
-    })
-    .rpc(confirmOptions);
+  
+  try {
+    const tx = await program.methods
+      .initialize()
+      .accountsPartial({
+        creator: creator.publicKey,
+        marketConfig: configAddress,
+        authority: authority,
+        ct1Mint: ct1MintAddress,
+        ct2Mint: ct2MintAddress,
+        ct1TokenProgram: TOKEN_2022_PROGRAM_ID,
+        ct2TokenProgram: TOKEN_2022_PROGRAM_ID,
+        vaultState: vaultStateAddress,
+        vault: vaultAddress,
+        collateralMint: collateralMint,
+        collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
+        tokenProgram: collateralTokenProgram,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc(confirmOptions);
 
-  const vaultState = await program.account.vaultState.fetch(vaultStateAddress);
-  return { vaultState, vaultStateAddress };
+    const vaultState = await program.account.vaultState.fetch(vaultStateAddress);
+    return { vaultState, vaultStateAddress, tx };
+  } catch (error: any) {
+    console.error("❌ Initialize transaction failed!");
+    if (error.logs) {
+      console.error("Transaction logs:");
+      error.logs.forEach((log: string) => console.error(log));
+    }
+    throw error;
+  }
 }
 
 export async function buyBet(
@@ -276,26 +292,35 @@ export async function buyBet(
     collateralTokenProgram
   );
 
-  const tx = await program.methods
-    .buyBet(amount)
-    .accountsPartial({
-      bettor: owner.publicKey,
-      authority,
-      collateralAccount: collateralAccount,
-      ct1Mint: ct1MintAddress,
-      vaultState: vaultStateAddress,
-      vault: vaultAddress,
-      ct2Mint: ct2MintAddress,
-      ct1Account,
-      ct2Account,
-      collateralMint: collateralMint,
-      collateralTokenProgram: collateralTokenProgram,
-      tokenProgram: collateralTokenProgram,
-      associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
-      systemProgram: SystemProgram.programId,
-    })
-    .rpc(confirmOptions);
-  return tx;
+  try {
+    const tx = await program.methods
+      .buyBet(amount)
+      .accountsPartial({
+        bettor: owner.publicKey,
+        authority,
+        collateralAccount: collateralAccount,
+        ct1Mint: ct1MintAddress,
+        vaultState: vaultStateAddress,
+        vault: vaultAddress,
+        ct2Mint: ct2MintAddress,
+        ct1Account,
+        ct2Account,
+        collateralMint: collateralMint,
+        collateralTokenProgram: collateralTokenProgram,
+        tokenProgram: collateralTokenProgram,
+        associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc(confirmOptions);
+    return tx;
+  } catch (error: any) {
+    console.error("❌ BuyBet transaction failed!");
+    if (error.logs) {
+      console.error("Transaction logs:");
+      error.logs.forEach((log: string) => console.error(log));
+    }
+    throw error;
+  }
 }
 
 export async function sellBet(
@@ -313,13 +338,6 @@ export async function sellBet(
 ) {
   const [authority] = await getAuthAddress(program.programId);
 
-  const collateralAccount = getAssociatedTokenAddressSync(
-    collateralMint,
-    owner.publicKey,
-    false,
-    collateralTokenProgram
-  );
-
   const ct1Account = getAssociatedTokenAddressSync(
     ct1MintAddress,
     owner.publicKey,
@@ -332,28 +350,43 @@ export async function sellBet(
     false,
     TOKEN_2022_PROGRAM_ID
   );
+  const collateralAccount = getAssociatedTokenAddressSync(
+    collateralMint,
+    owner.publicKey,
+    false,
+    collateralTokenProgram
+  );
 
-  const tx = await program.methods
-    .sellBet(amount)
-    .accountsPartial({
-      bettor: owner.publicKey,
-      authority,
-      collateralAccount,
-      vaultState: vaultStateAddress,
-      vault: vaultAddress,
-      ct1Mint: ct1MintAddress,
-      ct2Mint: ct2MintAddress,
-      ct1Account,
-      ct2Account,
-      collateralMint: collateralMint,
-      collateralTokenProgram: collateralTokenProgram,
-      tokenProgram: collateralTokenProgram,
-      associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
-      systemProgram: SystemProgram.programId,
-    })
-    .rpc(confirmOptions);
+  try {
+    const tx = await program.methods
+      .sellBet(amount)
+      .accountsPartial({
+        bettor: owner.publicKey,
+        authority,
+        collateralAccount,
+        vaultState: vaultStateAddress,
+        vault: vaultAddress,
+        ct1Mint: ct1MintAddress,
+        ct2Mint: ct2MintAddress,
+        ct1Account,
+        ct2Account,
+        collateralMint: collateralMint,
+        collateralTokenProgram: collateralTokenProgram,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc(confirmOptions);
 
-  return tx;
+    return tx;
+  } catch (error: any) {
+    console.error("❌ SellBet transaction failed!");
+    if (error.logs) {
+      console.error("Transaction logs:");
+      error.logs.forEach((log: string) => console.error(log));
+    }
+    throw error;
+  }
 }
 
 export async function getReward(

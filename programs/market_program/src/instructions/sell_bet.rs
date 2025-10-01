@@ -17,6 +17,7 @@ pub struct SellBet<'info> {
 
     /// CHECK: a authority pda account that is owned by this contract
     #[account(
+        mut,
         seeds = [
             crate::AUTH_SEED.as_bytes(),
         ],
@@ -40,7 +41,9 @@ pub struct SellBet<'info> {
     )]
     pub vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
+    #[account(mut)]
     pub ct1_mint: InterfaceAccount<'info, Mint>,
+    #[account(mut)]
     pub ct2_mint: InterfaceAccount<'info, Mint>,
 
     // user's token accounts for the conditional tokens
@@ -48,6 +51,7 @@ pub struct SellBet<'info> {
         mut,
         associated_token::mint = ct1_mint,
         associated_token::authority = bettor,
+        associated_token::token_program = token_program,
     )]
     pub ct1_account: InterfaceAccount<'info, TokenAccount>,
 
@@ -55,9 +59,11 @@ pub struct SellBet<'info> {
         mut,
         associated_token::mint = ct2_mint,
         associated_token::authority = bettor,
+        associated_token::token_program = token_program,
     )]
     pub ct2_account: InterfaceAccount<'info, TokenAccount>,
 
+    #[account(mut)]
     pub collateral_mint: InterfaceAccount<'info, Mint>,
     pub collateral_token_program: Interface<'info, TokenInterface>,
 
@@ -71,23 +77,29 @@ pub fn sell_bet(ctx: Context<SellBet>, amount: u64) -> Result<()> {
 
     let mut vault_state = ctx.accounts.vault_state.load_mut()?;
 
-    // burn the conditional tokens
-    token_burn(
-        ctx.accounts.bettor.to_account_info(),
-        ctx.accounts.token_program.to_account_info(),
-        ctx.accounts.ct1_mint.to_account_info(),
-        ctx.accounts.ct1_account.to_account_info(),
+    // burn the conditional tokens - bettor owns these, so use regular CPI (no PDA signing)
+    anchor_spl::token_2022::burn(
+        CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            anchor_spl::token_2022::Burn {
+                from: ctx.accounts.ct1_account.to_account_info(),
+                authority: ctx.accounts.bettor.to_account_info(),
+                mint: ctx.accounts.ct1_mint.to_account_info(),
+            },
+        ),
         amount,
-        &[&[crate::AUTH_SEED.as_bytes(), &[vault_state.auth_bump]]],
     )?;
 
-    token_burn(
-        ctx.accounts.bettor.to_account_info(),
-        ctx.accounts.token_program.to_account_info(),
-        ctx.accounts.ct2_mint.to_account_info(),
-        ctx.accounts.ct2_account.to_account_info(),
+    anchor_spl::token_2022::burn(
+        CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            anchor_spl::token_2022::Burn {
+                from: ctx.accounts.ct2_account.to_account_info(),
+                authority: ctx.accounts.bettor.to_account_info(),
+                mint: ctx.accounts.ct2_mint.to_account_info(),
+            },
+        ),
         amount,
-        &[&[crate::AUTH_SEED.as_bytes(), &[vault_state.auth_bump]]],
     )?;
 
     transfer_from_collateral_vault_to_user(

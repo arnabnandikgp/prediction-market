@@ -14,6 +14,7 @@ pub struct BuyBet<'info> {
 
     /// CHECK: a authority pda account that is owned by this contract
     #[account(
+        mut,
         seeds = [
             crate::AUTH_SEED.as_bytes(),
         ],
@@ -29,6 +30,7 @@ pub struct BuyBet<'info> {
     pub collateral_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     // token mints of the conditional tokens
+    #[account(mut)]
     pub ct1_mint: InterfaceAccount<'info, Mint>,
 
     #[account(mut)]
@@ -41,6 +43,7 @@ pub struct BuyBet<'info> {
     )]
     pub vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
+    #[account(mut)]
     pub ct2_mint: InterfaceAccount<'info, Mint>,
 
     // user's token accounts for the conditional tokens
@@ -62,11 +65,12 @@ pub struct BuyBet<'info> {
     )]
     pub ct2_account: InterfaceAccount<'info, TokenAccount>,
 
+    #[account(mut)]
     pub collateral_mint: InterfaceAccount<'info, Mint>,
     pub collateral_token_program: Interface<'info, TokenInterface>,
 
     // TODO : add the vault account of the collateral
-
+    
     pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
@@ -86,13 +90,20 @@ pub fn buy_bet(ctx: Context<BuyBet>, amount: u64) -> Result<()> {
         ctx.accounts.collateral_mint.decimals,
     )?;
 
+    let mut vault_state = ctx.accounts.vault_state.load_mut()?;
+
+    msg!("DEBUG BuyBet - Stored auth_bump: {}", vault_state.auth_bump);
+    msg!("DEBUG BuyBet - Stored vault: {}", vault_state.vault);
+    msg!("DEBUG BuyBet - Authority address: {}", ctx.accounts.authority.key());
+    msg!("DEBUG BuyBet - Vault address passed: {}", ctx.accounts.vault.key());
+
     token_mint_to(
         ctx.accounts.authority.to_account_info(),
         ctx.accounts.token_program.to_account_info(),
         ctx.accounts.ct1_mint.to_account_info(),
         ctx.accounts.ct1_account.to_account_info(),
         amount,
-        &[&[b"bettor", ctx.accounts.vault.key().as_ref()]],
+        &[&[crate::AUTH_SEED.as_bytes(), &[vault_state.auth_bump]]],
     )?;
 
     token_mint_to(
@@ -101,11 +112,10 @@ pub fn buy_bet(ctx: Context<BuyBet>, amount: u64) -> Result<()> {
         ctx.accounts.ct2_mint.to_account_info(),
         ctx.accounts.ct2_account.to_account_info(),
         amount,
-        &[&[b"bettor", ctx.accounts.vault.key().as_ref()]],
+        &[&[crate::AUTH_SEED.as_bytes(), &[vault_state.auth_bump]]],
     )?;
 
     // update the vault state with the new collateral amount.
-    let mut vault_state = ctx.accounts.vault_state.load_mut()?;
     vault_state.update_collateral_supply(amount, true)?;
 
     Ok(())

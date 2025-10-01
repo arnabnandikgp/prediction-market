@@ -1,3 +1,5 @@
+use std::ops::DerefMut;
+
 // all the things will happen here
 // 1. create the condition token mints
 // 2. create the vault and make it a token account that is owned by this contract
@@ -15,10 +17,11 @@ pub const AUTH_SEED: &str = "vault_and_lp_mint_auth_seed";
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
-    #[account(mut, address = pubkey!("Hoamid9gD8dEgLrirgt3gNnAWhmxYe5LSKrJJUGGd4DA"))]
+    // #[account(mut, address = pubkey!("Hoamid9gD8dEgLrirgt3gNnAWhmxYe5LSKrJJUGGd4DA"))]
     // TODO replace with the admin key
+    #[account(mut)]
     pub creator: Signer<'info>,
-
+    #[account(mut)]
     pub market_config: Account<'info, MarketConfig>,
 
     /// CHECK: a authority pda account that is owned by this contract
@@ -62,6 +65,7 @@ pub struct Initialize<'info> {
     pub ct2_token_program: Interface<'info, TokenInterface>,
 
     /// CHECK: vault state account should be a pda account owned by the contract
+    #[account(mut)]
     pub vault_state: UncheckedAccount<'info>,
 
     /// CHECK: vault account that is also owned by the contract and derived accordingly
@@ -86,16 +90,16 @@ pub struct Initialize<'info> {
 pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
     //this makes the passed vault account a token account that has some given seeds 
     create_token_account(
-        &&ctx.accounts.authority.to_account_info(),
+        &ctx.accounts.authority.to_account_info(),
         &ctx.accounts.creator.to_account_info(),
-        &&ctx.accounts.vault.to_account_info(),
+        &ctx.accounts.vault.to_account_info(),
         &ctx.accounts.collateral_mint.to_account_info(),
         &ctx.accounts.system_program.to_account_info(),
         &ctx.accounts.collateral_token_program.to_account_info(),
         &[
             b"vault",
             ctx.accounts.vault_state.key().as_ref(),
-            &[ctx.bumps.vault][..],
+            &[ctx.bumps.vault],
         ],
     )?;
 
@@ -109,7 +113,9 @@ pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
     let vault_state = &mut vault_state_loader.load_init()?;
 
     vault_state.initialize(
+        ctx.bumps.authority,
         ctx.accounts.market_config.key(),
+        ctx.accounts.vault.key(),
         ctx.accounts.creator.key(),
         ctx.accounts.market_config.created_at,
         ctx.accounts.market_config.expiration,
@@ -119,13 +125,19 @@ pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         ctx.accounts.ct2_token_program.key(),
     )?;
 
-    // update the market config with the vault state, vault, conditional token mints, and market resolution
-    ctx.accounts.market_config.vault_state = ctx.accounts.vault_state.key();
-    ctx.accounts.market_config.vault = ctx.accounts.vault.key();
-    ctx.accounts.market_config.ct1_mint = ctx.accounts.ct1_mint.key();
-    ctx.accounts.market_config.ct2_mint = ctx.accounts.ct2_mint.key();
-    ctx.accounts.market_config.market_resolution = false;
+    msg!("DEBUG Initialize - Authority bump: {}", ctx.bumps.authority);
+    msg!("DEBUG Initialize - Authority address: {}", ctx.accounts.authority.key());
+    msg!("DEBUG Initialize - Vault address: {}", ctx.accounts.vault.key());
+    msg!("DEBUG Initialize - Creator passed: {}", ctx.accounts.creator.key());
+    msg!("DEBUG Initialize - VaultState creator stored: {}", vault_state.vault_creator);
 
+    // update the market config with the vault state, vault, conditional token mints, and market resolution
+    let market_config = ctx.accounts.market_config.deref_mut();
+    market_config.vault_state = ctx.accounts.vault_state.key();
+    market_config.vault = ctx.accounts.vault.key();
+    market_config.ct1_mint = ctx.accounts.ct1_mint.key();
+    market_config.ct2_mint = ctx.accounts.ct2_mint.key();
+    market_config.market_resolution = false;
     Ok(())
 }
    
@@ -154,7 +166,12 @@ pub fn create_vault_state<'info>(
         creator.to_account_info(),
         system_program.to_account_info(),
         vault_state.clone(),
-        &[b"vault_state", market_config.key().as_ref(), &[bump]],
+        &[
+            b"vault_state",
+            market_config.key().as_ref(),
+            collateral_mint.key().as_ref(),
+            &[bump]
+        ],
         VaultState::LEN,
     )?;
 
