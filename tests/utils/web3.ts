@@ -8,7 +8,6 @@ import {
   TransactionSignature,
 } from "@solana/web3.js";
 
-// import ConfirmOptions from '@solana/web3.js';
 
 export async function accountExist(
   connection: anchor.web3.Connection,

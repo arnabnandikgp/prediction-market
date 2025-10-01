@@ -127,10 +127,6 @@ describe("Buy Bet Tests", () => {
         ct1MintAddress,
         ct2MintAddress
       );
-      console.log("vmeow")
-      console.log("buyAmount", buyAmount);
-      console.log("ct1Amount", ct1Amount);
-      console.log("ct2Amount", ct2Amount);
 
       expect(isEqual(ct1Amount, BigInt(buyAmount.toString()))).to.be.true;
       expect(isEqual(ct2Amount, BigInt(buyAmount.toString()))).to.be.true;

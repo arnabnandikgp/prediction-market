@@ -109,8 +109,6 @@ describe("Sell Bet Tests", () => {
 
       const buyAmount = new anchor.BN(800_000_000);
 
-      console.log("000000000000000")
-
       await buyBet(
         program,
         walletKeypair,
@@ -123,7 +121,6 @@ describe("Sell Bet Tests", () => {
         ct1MintAddress,
         ct2MintAddress
       );
-      console.log("1111111111111111111111")
 
       const beforeSell = await getUserCtAccountInfo(
         connection,
@@ -131,7 +128,6 @@ describe("Sell Bet Tests", () => {
         ct1MintAddress,
         ct2MintAddress
       );
-      console.log("2222222222222222222222")
       expect(isEqual(beforeSell.ct1Amount, BigInt(buyAmount.toString()))).to.be.true;
       expect(isEqual(beforeSell.ct2Amount, BigInt(buyAmount.toString()))).to.be.true;
 
@@ -141,7 +137,6 @@ describe("Sell Bet Tests", () => {
         undefined,
         TOKEN_2022_PROGRAM_ID
       );
-      console.log("3333333333333333333333")
 
       const sellAmount = new anchor.BN(300_000_000);
       await sellBet(
@@ -156,7 +151,6 @@ describe("Sell Bet Tests", () => {
         ct1MintAddress,
         ct2MintAddress
       );
-      console.log("4444444444444444444444")
 
       const afterSell = await getUserCtAccountInfo(
         connection,
@@ -164,7 +158,6 @@ describe("Sell Bet Tests", () => {
         ct1MintAddress,
         ct2MintAddress
       );
-      console.log("5555555555555555555555")
 
       const expectedRemainingCt = BigInt(buyAmount.sub(sellAmount).toString());
       expect(isEqual(afterSell.ct1Amount, expectedRemainingCt)).to.be.true;

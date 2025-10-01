@@ -4,10 +4,8 @@ import {
   Connection,
   ConfirmOptions,
   PublicKey,
-  Keypair,
   Signer,
   SystemProgram,
-  ValidatorInfo,
 } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
@@ -196,7 +194,7 @@ export async function createMarketConfig(
     .instruction();
 
   const tx = await sendTransaction(connection, [ix], [owner], confirmOptions);
-  console.log("init amm config tx: ", tx);
+  // console.log("init amm config tx: ", tx);
   return address;
 }
 
@@ -312,6 +310,10 @@ export async function buyBet(
         systemProgram: SystemProgram.programId,
       })
       .rpc(confirmOptions);
+
+    // Wait for transaction confirmation before returning
+    await program.provider.connection.confirmTransaction(tx, 'confirmed');
+    
     return tx;
   } catch (error: any) {
     console.error("❌ BuyBet transaction failed!");
@@ -377,6 +379,9 @@ export async function sellBet(
         systemProgram: SystemProgram.programId,
       })
       .rpc(confirmOptions);
+
+    // Wait for transaction confirmation before returning
+    await program.provider.connection.confirmTransaction(tx, 'confirmed');
 
     return tx;
   } catch (error: any) {
